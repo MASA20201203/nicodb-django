@@ -1,0 +1,20 @@
+repos:
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        entry: tox -e black
+        language: system
+        pass_filenames: false
+
+      - id: ruff
+        name: ruff
+        entry: tox -e ruff
+        language: system
+        pass_filenames: false
+
+      - id: mypy
+        name: mypy
+        entry: tox -e mypy
+        language: system
+        pass_filenames: false
