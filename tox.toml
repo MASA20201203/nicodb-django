@@ -1,0 +1,17 @@
+skipsdist = true
+env_list = ["black", "ruff", "mypy"]
+
+[env.black]
+description = "Run black: PEP8 のコーディング規約を自動適用"
+deps = ["black"]
+commands = [[ "black",  "." ]]
+
+[env.ruff]
+description = "Run ruff: インポート順の整列とPEP8をチェック"
+deps = ["ruff"]
+commands = [[ "ruff", "check", "." ]]
+
+[env.mypy]
+description = "Run mypy: 型チェック"
+deps = ["mypy"]
+commands = [[ "mypy", "." ]]

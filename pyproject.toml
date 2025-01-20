@@ -6,25 +6,3 @@ lint.ignore = ["E501"]
 lint.select = ["C9", "E", "F", "W", "I"]
 line-length = 100
 src = ["."]
-
-[tool.tox]
-legacy_tox_ini = """
-    [tox]
-    skipdist = True
-    envlist =
-        black
-        ruff
-        mypy
-
-    [black]
-    deps = black
-    commands = black .
-
-    [ruff]
-    deps = ruff
-    commands = ruff .
-
-    [mypy]
-    deps = mypy
-    commands = mypy .
-"""
