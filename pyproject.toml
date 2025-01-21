@@ -17,3 +17,12 @@ lint.select = [
     ]
 line-length = 100
 src = ["."]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "nicodb.settings"
+
+[tool.dev-dependencies]
+django-stubs = {extras = ["compatible-mypy"], version = "^1.12.0"}

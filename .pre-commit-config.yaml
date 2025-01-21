@@ -13,8 +13,8 @@ repos:
         language: system
         pass_filenames: false
 
-      # - id: mypy
-      #   name: mypy
-      #   entry: tox -e mypy
-      #   language: system
-      #   pass_filenames: false
+      - id: mypy
+        name: mypy
+        entry: tox -e mypy
+        language: system
+        pass_filenames: false

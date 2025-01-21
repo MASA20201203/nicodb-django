@@ -7,6 +7,8 @@ click==8.1.8
 colorama==0.4.6
 distlib==0.3.9
 Django==5.1.5
+django-stubs==5.1.2
+django-stubs-ext==5.1.2
 filelock==3.16.1
 gunicorn==23.0.0
 identify==2.6.5
@@ -23,5 +25,6 @@ PyYAML==6.0.2
 ruff==0.9.2
 sqlparse==0.5.3
 tox==4.23.2
+types-PyYAML==6.0.12.20241230
 typing_extensions==4.12.2
 virtualenv==20.29.1

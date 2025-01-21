@@ -13,5 +13,8 @@ commands = [[ "ruff", "check", "." ]]
 
 [env.mypy]
 description = "Run mypy: 型チェック"
-deps = ["mypy"]
+deps = [
+    "mypy",
+    "django-stubs[compatible-mypy]",
+    ]
 commands = [[ "mypy", "." ]]
