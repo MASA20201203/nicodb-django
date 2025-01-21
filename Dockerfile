@@ -45,7 +45,7 @@ USER appuser
 COPY . .
 
 # Expose the port that the application listens on.
-EXPOSE 8000
+EXPOSE 8080
 
 # Run the application.
-CMD gunicorn '.venv.lib.python3.13.site-packages.asgiref.wsgi' --bind=0.0.0.0:8000
+CMD gunicorn 'nicodb.wsgi:application' --bind=0.0.0.0:8080
