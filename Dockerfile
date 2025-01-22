@@ -18,6 +18,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# タイムゾーンを日本時間に設定
+ENV TZ=Asia/Tokyo
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 ARG UID=10001
