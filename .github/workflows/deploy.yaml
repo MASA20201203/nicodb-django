@@ -28,3 +28,13 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/nicodb-django:latest
+
+      - name: サーバーにデプロイ
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nicodb-django:latest
+            docker compose up -d -f ${{ secrets.DOCKER_COMPOSE_FILE }}
