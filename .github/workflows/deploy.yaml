@@ -37,4 +37,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             docker pull ${{ secrets.DOCKER_USERNAME }}/nicodb-django:latest
-            docker compose up -d -f ${{ secrets.DOCKER_COMPOSE_FILE }}
+            docker compose -f ${{ secrets.DOCKER_COMPOSE_FILE }} up -d
