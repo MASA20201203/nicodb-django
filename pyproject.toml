@@ -30,3 +30,10 @@ django-stubs = {extras = ["compatible-mypy"], version = "^1.12.0"}
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "nicodb.settings"
 python_files = "tests.py test_*.py *_tests.py"
+addopts = [
+    "--cov=nicodb",
+    "--cov=streamings",
+    "--cov-fail-under=80",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    ]

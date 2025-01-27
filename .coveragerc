@@ -1,0 +1,10 @@
+[run]
+branch = True
+omit =
+    */tests/*
+    */migrations/*
+    nicodb/asgi.py
+    nicodb/wsgi.py
+
+[report]
+show_missing = True
