@@ -13,4 +13,4 @@ def test_index_view_renders_correct_template(client):
     # Assert
     assert response.status_code == 200
     assert "streamings/index.html" in [t.name for t in response.templates]
-    assert "Hello, django.nidodb." in response.content.decode()
+    assert "masa" in response.content.decode()
