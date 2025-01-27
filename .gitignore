@@ -178,3 +178,6 @@ cython_debug/
 
 # やることリスト
 todo.md
+
+# 一時ファイル
+streamings/services/*.json

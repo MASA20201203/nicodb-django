@@ -16,5 +16,7 @@ description = "Run mypy: 型チェック"
 deps = [
     "mypy",
     "django-stubs[compatible-mypy]",
+    "types-requests",
+    "types-beautifulsoup4",
     ]
 commands = [[ "mypy", "." ]]
