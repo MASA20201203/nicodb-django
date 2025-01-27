@@ -92,3 +92,14 @@ jobs:
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_TITLE: 'Workflow Failed'
+          SLACK_COLOR: danger
+          SLACK_MESSAGE: |
+            GitHub Actions ワークフローが失敗しました。
+            リポジトリ: ${{ github.repository }}
+            ブランチ: ${{ github.ref }}
+            実行番号: ${{ github.run_number }}
+            実行者: ${{ github.actor }}
+            ジョブ: ${{ job.name }}
+            ステップ: ${{ steps.*.name }}
+            エラー: ${{ steps.*.outcome }}
