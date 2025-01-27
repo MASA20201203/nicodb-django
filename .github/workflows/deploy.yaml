@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '40 6 * * *' # UTC 6:00 -> JST 15:00
+    - cron: '30 17 * * *' # UTC 17:30 -> JST 26:30
 
 jobs:
   lint:
