@@ -64,7 +64,7 @@ def run(streaming_id: str) -> StreamingData:
     url = build_url(streaming_id)
     headers = get_default_headers()
     html_content = fetch_html(url, headers)
-    script_tag = parse_html(html_content)
+    script_tag = find_script_tag(html_content)
     json_data = extract_data_props(script_tag)
     return extract_streaming_data(json_data)
 
@@ -119,7 +119,7 @@ def fetch_html(url: str, headers: dict) -> str:
         raise Exception(f"HTTPリクエストエラー: {e}") from e
 
 
-def parse_html(html_content: str) -> Tag:
+def find_script_tag(html_content: str) -> Tag:
     """
     HTMLを解析し、特定のスクリプトタグを取得する。
 

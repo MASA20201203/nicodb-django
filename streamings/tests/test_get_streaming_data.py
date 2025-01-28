@@ -1,17 +1,19 @@
 import pytest
 import requests
+from bs4 import Tag
 from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
     build_url,
     fetch_html,
+    find_script_tag,
     get_default_headers,
 )
 
 
 def test_build_url(monkeypatch) -> None:
     """
-    build_url関数が配信IDから正しいURLを生成するかをテスト。
+    build_url関数が配信IDから正しいURLを生成するかをテスト
     """
     # Given: 環境変数 "STREAMING_BASE_URL" が設定されており、配信IDが 123456789
     streaming_base_url = "https://live.nicovideo.jp/watch/lv"
@@ -27,7 +29,7 @@ def test_build_url(monkeypatch) -> None:
 
 def test_get_default_headers() -> None:
     """
-    get_default_headers関数が正しいヘッダーを返すかをテスト。
+    get_default_headers関数が正しいヘッダーを返すかをテスト
     """
     # Given: 期待されるヘッダー情報
     expected_headers = {
@@ -55,7 +57,7 @@ class TestFetchHtml:
 
     def test_success(self, requests_mock: Mocker) -> None:
         """
-        fetch_html関数が正常にHTMLデータを取得する場合のテスト。
+        fetch_html関数が正常にHTMLデータを取得する場合のテスト
         """
         # Given: 正常なレスポンスをモック
         requests_mock.get(self.url, text=self.expected_html, status_code=200)
@@ -68,7 +70,7 @@ class TestFetchHtml:
 
     def test_http_error(self, requests_mock: Mocker) -> None:
         """
-        fetch_html関数がHTTPエラーを処理する場合のテスト。
+        fetch_html関数がHTTPエラーを処理する場合のテスト
         """
         # Given: HTTPエラーをモック
         requests_mock.get(self.url, status_code=403)
@@ -79,7 +81,7 @@ class TestFetchHtml:
 
     def test_request_exception(self, requests_mock: Mocker) -> None:
         """
-        fetch_html関数がリクエスト例外を処理する場合のテスト。
+        fetch_html関数がリクエスト例外を処理する場合のテスト
         """
         # Given: リクエスト例外をモック
         requests_mock.get(self.url, exc=requests.exceptions.ConnectionError("Connection refused"))
@@ -87,3 +89,66 @@ class TestFetchHtml:
         # When & Then: fetch_html関数が例外を投げることを確認
         with pytest.raises(Exception, match="HTTPリクエストエラー: Connection refused"):
             fetch_html(self.url, self.headers)
+
+
+class TestFindScriptTag:
+    def test_success(self) -> None:
+        """
+        正しいスクリプトタグがHTML内に存在する場合のテスト
+        """
+        # Given: 正しいスクリプトタグを含むHTML
+        valid_html = """
+        <html>
+            <body>
+                <script id="embedded-data" data-props='{&quot;akashic&quot;:{'></script>
+            </body>
+        </html>
+        """
+
+        # When: find_script_tag関数を実行
+        script_tag = find_script_tag(valid_html)
+
+        # Then: 戻り値がTagオブジェクトで、正しい属性を持つ
+        assert isinstance(script_tag, Tag)
+        assert script_tag["id"] == "embedded-data"
+        assert script_tag["data-props"] == '{"akashic":{'
+
+    def test_multiple_script_tags(self) -> None:
+        """
+        複数のスクリプトタグがHTML内に存在する場合のテスト
+        """
+
+        # Given: 複数のスクリプトタグを含むHTML
+        multiple_script_tags_html = """
+        <html>
+            <body>
+                <script id="other-data"></script>
+                <script id="embedded-data" data-props='{&quot;akashic&quot;:{'></script>
+            </body>
+        </html>
+        """
+
+        # When: find_script_tag関数を実行
+        script_tag = find_script_tag(multiple_script_tags_html)
+
+        # Then: 取得したスクリプトタグのid属性が"embedded-data"であることを確認
+        assert script_tag["id"] == "embedded-data"
+
+    def test_script_tag_not_found(self) -> None:
+        """
+        スクリプトタグがHTML内に存在しない場合のテスト
+        """
+        # Given: スクリプトタグが存在しないHTML
+        invalid_html = """
+        <html>
+            <body>
+                <div id="other-data"></div>
+            </body>
+        </html>
+        """
+
+        # When & Then: 例外が発生することを確認
+        with pytest.raises(
+            Exception, match="指定されたスクリプトタグ（embedded-data）が見つかりませんでした。"
+        ):
+            find_script_tag(invalid_html)
