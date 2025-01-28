@@ -22,55 +22,78 @@
 import argparse
 import html
 import json
+import os
+import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import requests
 from bs4 import BeautifulSoup, Tag
+from dotenv import load_dotenv
+
+# .envファイルから環境変数を読み込む
+load_dotenv()
 
 
-def main():
+@dataclass
+class StreamingData:
     """
-    配信データを取得し、配信情報を表示するメイン処理。
+    配信データを格納するデータクラス。
     """
-    # 引数をパース
-    args = parse_args()
 
-    # 配信IDを使ってURLを生成
-    streaming_id = args.streaming_id
-    url = f"https://live.nicovideo.jp/watch/lv{streaming_id}"
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-    }
-
-    try:
-        # 処理の流れ
-        html_content = fetch_html(url, headers)  # データ取得
-        script_tag = parse_html(html_content)  # HTML解析
-        json_data = extract_data_props(script_tag)  # JSON解析
-        program_info = extract_streaming_data(json_data)  # 配信情報抽出
-
-        # 結果を出力
-        for key, value in program_info.items():
-            print(f"{key}: {value}")
-    except Exception as e:
-        print(f"エラー: {e}")
+    streaming_id: str
+    streaming_title: str
+    streamer_id: str
+    streamer_name: str
+    streaming_time_begin: str
+    streaming_time_end: str
+    streaming_time_duration: str
+    streaming_status: str
 
 
-def parse_args() -> argparse.Namespace:
+def run(streaming_id: str) -> StreamingData:
     """
-    コマンドライン引数を解析する。
+    指定された配信IDを用いて配信データを取得する。
+
+    Args:
+        streaming_id (str): 配信ID。
 
     Returns:
-        argparse.Namespace: コマンドライン引数の結果。
+        StreamingData: 抽出された配信データ
     """
-    parser = argparse.ArgumentParser(description="配信データを取得するスクリプト")
-    parser.add_argument(
-        "streaming_id",
-        type=str,
-        help="配信ID（例: 346883570）",
-    )
-    return parser.parse_args()
+    url = build_url(streaming_id)
+    headers = get_default_headers()
+    html_content = fetch_html(url, headers)
+    script_tag = parse_html(html_content)
+    json_data = extract_data_props(script_tag)
+    return extract_streaming_data(json_data)
+
+
+def build_url(streaming_id: str) -> str:
+    """
+    配信IDからURLを生成する。
+
+    Args:
+        streaming_id (str): 配信ID。
+
+    Returns:
+        str: 配信URL。
+    """
+    # 環境変数からベースURLを取得
+    streaming_url = os.getenv("STREAMING_URL")
+    return f"{streaming_url}{streaming_id}"
+
+
+def get_default_headers() -> dict:
+    """
+    デフォルトのリクエストヘッダーを返す。
+
+    Returns:
+        dict: ヘッダー情報。
+    """
+    return {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
 
 
 def fetch_html(url: str, headers: dict) -> str:
@@ -87,11 +110,12 @@ def fetch_html(url: str, headers: dict) -> str:
     Raises:
         Exception: HTTPステータスコードが200以外の場合。
     """
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
         return response.text
-    else:
-        raise Exception(f"{response.status_code}: データを取得できませんでした。")
+    except requests.RequestException as e:
+        raise Exception(f"HTTPリクエストエラー: {e}") from e
 
 
 def parse_html(html_content: str) -> Tag:
@@ -163,11 +187,12 @@ def calculate_duration(start_time: int, end_time: int) -> str:
         str: 配信時間（例: "HH:MM:SS"）。
     """
     duration_seconds = end_time - start_time
-    duration = str(timedelta(seconds=duration_seconds))
-    return duration
+    hours, remainder = divmod(duration_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
-def extract_streaming_data(json_data: dict) -> dict:
+def extract_streaming_data(json_data: dict) -> StreamingData:
     """
     JSONデータから配信情報を抽出する。
 
@@ -175,7 +200,7 @@ def extract_streaming_data(json_data: dict) -> dict:
         json_data (dict): 抽出対象のJSONデータ。
 
     Returns:
-        dict: 配信情報（タイトル、配信者名、配信IDなど）。
+        StreamingData: 配信情報（タイトル、配信者名、配信IDなど）。
 
     Raises:
         Exception: 必須データが見つからなかった場合。
@@ -217,18 +242,49 @@ def extract_streaming_data(json_data: dict) -> dict:
     # 配信時間を計算
     streaming_time_duration = calculate_duration(streaming_time_begin, streaming_time_end)
 
-    # データを辞書型で返す
-    return {
-        "streaming_id": streaming_id,
-        "streaming_title": streaming_title,
-        "streamer_id": streamer_id,
-        "streamer_name": streamer_name,
-        "streaming_time_begin": streaming_time_begin_jst,
-        "streaming_time_end": streaming_time_end_jst,
-        "streaming_time_duration": streaming_time_duration,
-        "streaming_status": streaming_status,
-    }
+    return StreamingData(
+        streaming_id=streaming_id,
+        streaming_title=streaming_title,
+        streamer_id=streamer_id,
+        streamer_name=streamer_name,
+        streaming_time_begin=streaming_time_begin_jst,
+        streaming_time_end=streaming_time_end_jst,
+        streaming_time_duration=streaming_time_duration,
+        streaming_status=streaming_status,
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    コマンドライン引数を解析する。
+
+    Returns:
+        argparse.Namespace: コマンドライン引数の結果。
+    """
+    parser = argparse.ArgumentParser(description="配信データを取得するスクリプト")
+    parser.add_argument(
+        "streaming_id",
+        type=str,
+        help="配信ID（例: 346883570）",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    try:
+        streaming_data = run(args.streaming_id)
+        for key, value in streaming_data.__dict__.items():
+            print(f"{key}: {value}")
+    except requests.RequestException as e:
+        print(f"HTTPリクエストエラー: {e}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"JSONデコードエラー: {e}")
+        sys.exit(2)
+    except KeyError as e:
+        print(f"データ構造エラー: 必要なキーが存在しません ({e})")
+        sys.exit(3)
+    except Exception as e:
+        print(f"予期しないエラー: {e}")
+        sys.exit(99)

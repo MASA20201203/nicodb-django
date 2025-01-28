@@ -18,5 +18,6 @@ deps = [
     "django-stubs[compatible-mypy]",
     "types-requests",
     "types-beautifulsoup4",
+    "python-dotenv",
     ]
 commands = [[ "mypy", "." ]]
