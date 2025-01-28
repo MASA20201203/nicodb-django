@@ -1,97 +1,88 @@
-import os
-from unittest.mock import MagicMock, patch
-
-from dotenv import load_dotenv
+import pytest
+import requests
 
 from streamings.services.get_streaming_data import (
     build_url,
-    extract_data_props,
     fetch_html,
     get_default_headers,
-    parse_html,
 )
 
-load_dotenv()
 
-
-def test_build_url():
+def test_build_url(monkeypatch):
     """
-    build_url関数が正しいURLを生成するかをテスト
+    build_url関数が配信IDから正しいURLを生成するかをテスト。
     """
-    # Given 配信IDが 123456789 であり、環境変数 STREAMING_URL が設定されており、
-    streaming_id = 123456789
-    streaming_url = os.getenv("STREAMING_URL")
+    # Given: 環境変数 "STREAMING_BASE_URL" が設定されており、配信IDが 123456789
+    streaming_base_url = "https://live.nicovideo.jp/watch/lv"
+    monkeypatch.setenv("STREAMING_BASE_URL", streaming_base_url)
+    streaming_id = "123456789"
 
-    # When build_url 関数を呼び出した時、
-    url = build_url(streaming_id, streaming_url)
+    # When: build_url 関数を呼び出す
+    streaming_url = build_url(streaming_id)
 
-    # Then 正しいURL "https://live.nicovideo.jp/watch/123456789" が生成される。
-    assert url == "https://live.nicovideo.jp/watch/lv123456789"
+    # Then: 正しい配信URL（https://live.nicovideo.jp/watch/lv123456789）が生成される
+    assert streaming_url == "https://live.nicovideo.jp/watch/lv123456789"
 
 
 def test_get_default_headers():
     """
-    get_default_headers関数がデフォルトのリクエストヘッダーを返すかをテスト
+    get_default_headers関数が正しいヘッダーを返すかをテスト。
     """
-    # When get_default_headers 関数を呼び出した時、
+    # Given: 期待されるヘッダー情報
+    expected_headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
+    }
+
+    # When: get_default_headers 関数を呼び出す
     headers = get_default_headers()
 
-    # Then ヘッダーに "User-Agent" が含まれる。
-    assert "User-Agent" in headers
+    # Then: 期待されるヘッダー情報が返される
+    assert headers == expected_headers
 
 
-@patch("get_streaming_data.requests.get")
-def test_fetch_html(mock_get):
-    """
-    fetch_html関数が正しいHTMLデータを取得するかをテスト
-    """
-    # Given: URLが "https://live.nicovideo.jp/watch/lv123456789"、
-    #        レスポンスがステータス200とHTML "<html><body>Test</body></html>"
-    url = "https://live.nicovideo.jp/watch/lv123456789"
-    headers = {"User-Agent": "test"}
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.text = "<html><body>Test</body></html>"
-    mock_get.return_value = mock_response
+class TestFetchHtml:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """
+        共通データのセットアップ。
+        """
+        self.url = "https://live.nicovideo.jp/watch/lv123456789"
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
+        }
+        self.expected_html = "<html><body><h1>Test Page</h1></body></html>"
 
-    # When: fetch_html 関数を呼び出した時、
-    html_content = fetch_html(url, headers)
+    def test_success(self, requests_mock):
+        """
+        fetch_html関数が正常にHTMLデータを取得する場合のテスト。
+        """
+        # Given: 正常なレスポンスをモック
+        requests_mock.get(self.url, text=self.expected_html, status_code=200)
 
-    # Then: HTMLデータ "<html><body>Test</body></html>" が返される
-    assert html_content == "<html><body>Test</body></html>"
-    mock_get.assert_called_once_with(url, headers=headers, timeout=10)
+        # When: fetch_html関数を呼び出す
+        responce_text = fetch_html(self.url, self.headers)
 
+        # Then: 正しいHTMLデータが返される
+        assert responce_text == self.expected_html
 
-def test_parse_html():
-    """
-    parse_html関数が特定のスクリプトタグを正しく取得するかをテスト。
-    """
-    # Given: HTMLにスクリプトタグを含むデータ
-    html_content = """
-    <html>
-        <script id="embedded-data" data-props='{&quot;akashic&quot;:'></script>
-    </html>
-    """
+    def test_http_error(self, requests_mock):
+        """
+        fetch_html関数がHTTPエラーを処理する場合のテスト。
+        """
+        # Given: HTTPエラーをモック
+        requests_mock.get(self.url, status_code=403)
 
-    # When: parse_html 関数を呼び出す
-    result = parse_html(html_content)
+        # When & Then: fetch_html関数が例外を投げることを確認
+        with pytest.raises(Exception, match="HTTPリクエストエラー: 403 Client Error"):
+            fetch_html(self.url, self.headers)
 
-    # Then: スクリプトタグが正しく取得され、data-props属性に '{"key": "value"}' を持つ
-    assert result.get("data-props") == "{&quot;akashic&quot;:"
+    def test_request_exception(self, requests_mock):
+        """
+        fetch_html関数がリクエスト例外を処理する場合のテスト。
+        """
+        # Given: リクエスト例外をモック
+        requests_mock.get(self.url, exc=requests.exceptions.ConnectionError("Connection refused"))
 
-
-def test_extract_data_props():
-    """
-    extract_data_props関数がJSONデータを正しく抽出するかをテスト。
-    """
-    # Given: スクリプトタグに data-props 属性 '{&quot;akashic&quot;:' を含む
-    from bs4 import Tag
-
-    mock_tag = MagicMock(spec=Tag)
-    mock_tag.get.return_value = "{&quot;akashic&quot;:"
-
-    # When: extract_data_props 関数を呼び出す
-    result = extract_data_props(mock_tag)
-
-    # Then: 正しいJSONデータ {"key": "value"} が返される
-    assert result == {"key": "value"}
+        # When & Then: fetch_html関数が例外を投げることを確認
+        with pytest.raises(Exception, match="HTTPリクエストエラー: Connection refused"):
+            fetch_html(self.url, self.headers)

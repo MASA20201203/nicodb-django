@@ -77,11 +77,12 @@ def build_url(streaming_id: str) -> str:
         streaming_id (str): 配信ID。
 
     Returns:
-        str: 配信URL。
+        streaming_url（str）: 配信URL。
     """
     # 環境変数からベースURLを取得
-    streaming_url = os.getenv("STREAMING_URL")
-    return f"{streaming_url}{streaming_id}"
+    streaming_base_url = os.getenv("STREAMING_BASE_URL")
+    streaming_url = f"{streaming_base_url}{streaming_id}"
+    return streaming_url
 
 
 def get_default_headers() -> dict:
@@ -92,7 +93,7 @@ def get_default_headers() -> dict:
         dict: ヘッダー情報。
     """
     return {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
     }
 
 
