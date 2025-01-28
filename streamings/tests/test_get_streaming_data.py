@@ -1,5 +1,6 @@
 import pytest
 import requests
+from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
     build_url,
@@ -8,7 +9,7 @@ from streamings.services.get_streaming_data import (
 )
 
 
-def test_build_url(monkeypatch):
+def test_build_url(monkeypatch) -> None:
     """
     build_url関数が配信IDから正しいURLを生成するかをテスト。
     """
@@ -24,7 +25,7 @@ def test_build_url(monkeypatch):
     assert streaming_url == "https://live.nicovideo.jp/watch/lv123456789"
 
 
-def test_get_default_headers():
+def test_get_default_headers() -> None:
     """
     get_default_headers関数が正しいヘッダーを返すかをテスト。
     """
@@ -42,7 +43,7 @@ def test_get_default_headers():
 
 class TestFetchHtml:
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self) -> None:
         """
         共通データのセットアップ。
         """
@@ -52,7 +53,7 @@ class TestFetchHtml:
         }
         self.expected_html = "<html><body><h1>Test Page</h1></body></html>"
 
-    def test_success(self, requests_mock):
+    def test_success(self, requests_mock: Mocker) -> None:
         """
         fetch_html関数が正常にHTMLデータを取得する場合のテスト。
         """
@@ -60,12 +61,12 @@ class TestFetchHtml:
         requests_mock.get(self.url, text=self.expected_html, status_code=200)
 
         # When: fetch_html関数を呼び出す
-        responce_text = fetch_html(self.url, self.headers)
+        response_text = fetch_html(self.url, self.headers)
 
         # Then: 正しいHTMLデータが返される
-        assert responce_text == self.expected_html
+        assert response_text == self.expected_html
 
-    def test_http_error(self, requests_mock):
+    def test_http_error(self, requests_mock: Mocker) -> None:
         """
         fetch_html関数がHTTPエラーを処理する場合のテスト。
         """
@@ -76,7 +77,7 @@ class TestFetchHtml:
         with pytest.raises(Exception, match="HTTPリクエストエラー: 403 Client Error"):
             fetch_html(self.url, self.headers)
 
-    def test_request_exception(self, requests_mock):
+    def test_request_exception(self, requests_mock: Mocker) -> None:
         """
         fetch_html関数がリクエスト例外を処理する場合のテスト。
         """
