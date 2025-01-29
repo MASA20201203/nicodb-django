@@ -40,14 +40,14 @@ class StreamingData:
     配信データを格納するデータクラス。
     """
 
-    streaming_id: str
-    streaming_title: str
+    id: str
+    title: str
+    time_begin: str
+    time_end: str
+    time_duration: str
+    status: str
     streamer_id: str
     streamer_name: str
-    streaming_time_begin: str
-    streaming_time_end: str
-    streaming_time_duration: str
-    streaming_status: str
 
 
 def run(streaming_id: str) -> StreamingData:
@@ -64,7 +64,7 @@ def run(streaming_id: str) -> StreamingData:
     headers = get_default_headers()
     html_content = fetch_html(url, headers)
     script_tag_with_data_props = find_script_tag_with_data_props(html_content)
-    print(script_tag_with_data_props)
+    # print(script_tag_with_data_props)
     data_props_dict = parse_data_props_to_dict(script_tag_with_data_props)
     # print(json_data)
     return extract_streaming_data(data_props_dict)
@@ -210,53 +210,31 @@ def extract_streaming_data(json_data: dict) -> StreamingData:
     Raises:
         Exception: 必須データが見つからなかった場合。
     """
-    program = json_data.get("program", {})
-    supplier = program.get("supplier", {})
 
-    streaming_id = program.get("nicoliveProgramId")
-    streaming_title = program.get("title")
-    streamer_id = supplier.get("programProviderId")
-    streamer_name = supplier.get("name")
-    streaming_time_begin = program.get("beginTime")
-    streaming_time_end = program.get("endTime")
-    streaming_status = program.get("status")
+    try:
+        program = json_data["program"]
+        supplier = program["supplier"]
 
-    # 必須データが不足している場合は例外をスロー
-    if not streaming_id:
-        raise Exception("配信IDが見つかりませんでした。")
-    if not streaming_title:
-        raise Exception("配信タイトルが見つかりませんでした。")
-    if not streamer_id:
-        raise Exception("配信者IDが見つかりませんでした。")
-    if not streamer_name:
-        raise Exception("配信者名が見つかりませんでした。")
-    if streaming_time_begin is None:
-        raise Exception("配信開始時間が見つかりませんでした。")
-    if streaming_time_end is None:
-        raise Exception("配信終了時間が見つかりませんでした。")
-    if not streaming_status:
-        raise Exception("配信終了ステータスが見つかりませんでした。")
+        streaming_data = {
+            "id": program["nicoliveProgramId"].removeprefix("lv"),
+            "title": program["title"],
+            "time_begin": program["beginTime"],
+            "time_end": program["endTime"],
+            "status": program["status"],
+            "streamer_id": supplier["programProviderId"],
+            "streamer_name": supplier["name"],
+        }
+    except KeyError as e:
+        raise ValueError(f"必須データが見つかりませんでした: {e.args[0]}") from e
 
-    # 配信IDから "lv" を取り除く
-    streaming_id = streaming_id.removeprefix("lv")
-
-    # Unixタイムスタンプを日本標準時（JST）に変換
-    streaming_time_begin_jst = convert_unix_to_jst(streaming_time_begin)
-    streaming_time_end_jst = convert_unix_to_jst(streaming_time_end)
+    # UnixタイムスタンプをJSTに変換
+    streaming_data["time_begin"] = convert_unix_to_jst(streaming_data["time_begin"])
+    streaming_data["time_end"] = convert_unix_to_jst(streaming_data["time_end"])
 
     # 配信時間を計算
-    streaming_time_duration = calculate_duration(streaming_time_begin, streaming_time_end)
+    streaming_data["time_duration"] = calculate_duration(program["beginTime"], program["endTime"])
 
-    return StreamingData(
-        streaming_id=streaming_id,
-        streaming_title=streaming_title,
-        streamer_id=streamer_id,
-        streamer_name=streamer_name,
-        streaming_time_begin=streaming_time_begin_jst,
-        streaming_time_end=streaming_time_end_jst,
-        streaming_time_duration=streaming_time_duration,
-        streaming_status=streaming_status,
-    )
+    return StreamingData(**streaming_data)
 
 
 def parse_args() -> argparse.Namespace:
