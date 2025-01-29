@@ -63,11 +63,11 @@ def run(streaming_id: str) -> StreamingData:
     url = build_streaming_url(streaming_id)
     headers = get_default_headers()
     html_content = fetch_html(url, headers)
-    script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
-    print(script_tag_with_embedded_data)
-    json_data = extract_data_props_to_json(script_tag_with_embedded_data)
+    script_tag_with_data_props = find_script_tag_with_data_props(html_content)
+    print(script_tag_with_data_props)
+    data_props_dict = parse_data_props_to_dict(script_tag_with_data_props)
     # print(json_data)
-    return extract_streaming_data(json_data)
+    return extract_streaming_data(data_props_dict)
 
 
 def build_streaming_url(streaming_id: str) -> str:
@@ -120,9 +120,9 @@ def fetch_html(url: str, headers: dict) -> str:
         raise Exception(f"HTTPリクエストエラー: {e}") from e
 
 
-def find_script_tag_with_embedded_data(html_content: str) -> Tag:
+def find_script_tag_with_data_props(html_content: str) -> Tag:
     """
-    HTMLを解析し、id="embedded-data"属性を持っているスクリプトタグを取得する。
+    HTMLを解析し、data_props属性を持っているスクリプトタグを取得する。
 
     Args:
         html_content (str): 解析対象のHTMLデータ。
@@ -134,30 +134,30 @@ def find_script_tag_with_embedded_data(html_content: str) -> Tag:
         Exception: 対象のスクリプトタグが見つからなかった場合。
     """
     soup = BeautifulSoup(html_content, "html.parser")
-    script_tag_with_embedded_data = soup.find("script", id="embedded-data")
-    if not isinstance(script_tag_with_embedded_data, Tag):
-        raise Exception('id="embedded-data"属性を持つスクリプトタグが見つかりませんでした。')
-    return script_tag_with_embedded_data
+    script_tag_with_data_props = soup.find("script", attrs={"data-props": True})
+    if not isinstance(script_tag_with_data_props, Tag):
+        raise Exception("data_props属性を持つスクリプトタグが見つかりませんでした。")
+    return script_tag_with_data_props
 
 
-def extract_data_props_to_json(script_tag_with_embedded_data: Tag) -> dict:
+def parse_data_props_to_dict(script_tag_with_embedded_data: Tag) -> dict:
     """
-    スクリプトタグのdata-props属性をデコードし、JSONデータを取得する。
+    スクリプトタグのdata-props属性の値をパース（json -> dict に変換）して、Pythonで扱えるようにする。
 
     Args:
         script_tag_with_embedded_data (Tag): data-props属性を含むスクリプトタグ。
 
     Returns:
-        dict: デコードされたJSONデータ。
+        dict: 辞書型にパースされたJSONデータ。
 
     Raises:
         Exception: data-props属性が見つからなかった場合。
     """
-    data_props = script_tag_with_embedded_data.get("data-props")
-    if not data_props:  # data-props が `None`(存在しない) または `""`(存在するが空文字) の場合
-        raise ValueError("data-props属性が不正です。")
-    data_props_json = json.loads(str(data_props))
-    return data_props_json
+    data_props = str(script_tag_with_embedded_data["data-props"])
+    if data_props.strip() == "":
+        raise ValueError("data-props属性の値が空です。")
+    data_props_dict = json.loads(data_props)
+    return data_props_dict
 
 
 def convert_unix_to_jst(unix_time: int) -> str:

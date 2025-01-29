@@ -7,10 +7,11 @@ from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
     build_streaming_url,
-    extract_data_props_to_json,
+    convert_unix_to_jst,
     fetch_html,
-    find_script_tag_with_embedded_data,
+    find_script_tag_with_data_props,
     get_default_headers,
+    parse_data_props_to_dict,
 )
 
 
@@ -24,26 +25,27 @@ def test_build_streaming_url(monkeypatch) -> None:
     streaming_id = "123456789"
 
     # When: build_streaming_url 関数を呼び出す
-    streaming_url = build_streaming_url(streaming_id)
+    result = build_streaming_url(streaming_id)
 
     # Then: 正しい配信URL（https://live.nicovideo.jp/watch/lv123456789）が生成される
-    assert streaming_url == "https://live.nicovideo.jp/watch/lv123456789"
+    excepted_streaming_url = "https://live.nicovideo.jp/watch/lv123456789"
+    assert result == excepted_streaming_url
 
 
 def test_get_default_headers() -> None:
     """
     get_default_headers関数が正しいヘッダーを返すかをテスト
     """
-    # Given: 期待されるヘッダー情報
+    # Given: なし
+
+    # When: get_default_headers 関数を呼び出す
+    result = get_default_headers()
+
+    # Then: 期待されるヘッダー情報が返される
     expected_headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
     }
-
-    # When: get_default_headers 関数を呼び出す
-    headers = get_default_headers()
-
-    # Then: 期待されるヘッダー情報が返される
-    assert headers == expected_headers
+    assert result == expected_headers
 
 
 class TestFetchHtml:
@@ -60,20 +62,21 @@ class TestFetchHtml:
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
         }
-        self.expected_html = "<html><body><h1>Test Page</h1></body></html>"
 
     def test_success(self, requests_mock: Mocker) -> None:
         """
         fetch_html関数が正常にHTMLデータを取得する場合のテスト
         """
         # Given: 正常なレスポンスをモック
-        requests_mock.get(self.url, text=self.expected_html, status_code=200)
+        given_html = "<html><body><h1>Test Page</h1></body></html>"
+        requests_mock.get(self.url, [{"text": given_html, "status_code": 200}])
 
         # When: fetch_html関数を呼び出す
-        response_text = fetch_html(self.url, self.headers)
+        result = fetch_html(self.url, self.headers)
 
         # Then: 正しいHTMLデータが返される
-        assert response_text == self.expected_html
+        expected_html = "<html><body><h1>Test Page</h1></body></html>"
+        assert result == expected_html
 
     def test_http_error(self, requests_mock: Mocker) -> None:
         """
@@ -98,9 +101,9 @@ class TestFetchHtml:
             fetch_html(self.url, self.headers)
 
 
-class TestFindScriptTagWithEmbeddedData:
+class TestFindScriptTagWithDataProps:
     """
-    find_script_tag_with_embedded_data 関数のテストクラス。
+    find_script_tag_with_data_props 関数のテストクラス。
     """
 
     def test_success(self) -> None:
@@ -116,13 +119,12 @@ class TestFindScriptTagWithEmbeddedData:
         </html>
         """
 
-        # When: find_script_tag_with_embedded_data関数を実行
-        script_tag = find_script_tag_with_embedded_data(valid_html)
+        # When: find_script_tag_with_data_props関数を実行
+        result = find_script_tag_with_data_props(valid_html)
 
         # Then: 戻り値がTagオブジェクトで、正しい属性を持つ
-        assert isinstance(script_tag, Tag)
-        assert script_tag["id"] == "embedded-data"
-        assert script_tag["data-props"] == '{"akashic":{'
+        assert isinstance(result, Tag)
+        assert "data-props" in result.attrs
 
     def test_multiple_script_tags(self) -> None:
         """
@@ -139,11 +141,13 @@ class TestFindScriptTagWithEmbeddedData:
         </html>
         """
 
-        # When: find_script_tag_with_embedded_data関数を実行
-        script_tag = find_script_tag_with_embedded_data(multiple_script_tags_html)
+        # When: find_script_tag_with_data_props関数を実行
+        result = find_script_tag_with_data_props(multiple_script_tags_html)
 
         # Then: 取得したスクリプトタグのid属性が"embedded-data"であることを確認
-        assert script_tag["id"] == "embedded-data"
+        assert isinstance(result, Tag)
+        assert result["id"] == "embedded-data"
+        assert "data-props" in result.attrs
 
     def test_script_tag_not_found(self) -> None:
         """
@@ -160,46 +164,33 @@ class TestFindScriptTagWithEmbeddedData:
 
         # When & Then: 例外が発生することを確認
         with pytest.raises(
-            Exception, match='id="embedded-data"属性を持つスクリプトタグが見つかりませんでした。'
+            Exception, match="data_props属性を持つスクリプトタグが見つかりませんでした。"
         ):
-            find_script_tag_with_embedded_data(invalid_html)
+            find_script_tag_with_data_props(invalid_html)
 
 
-class TestExtractDataPropsToJson:
+class TestParseDataPropsToDict:
     """
-    extract_data_props_to_json 関数のテストクラス。
+    parse_data_props_to_dict 関数のテストクラス。
     """
 
     def test_success(self) -> None:
         """
         スクリプトタグのdata-props属性が正常なJSON形式で取得できる場合のテスト。
         """
-        # Given: 正常なHTML
+        # Given: 正常なJSONデータを含むスクリプトタグ
         html_content = """
         <script id="embedded-data" data-props='{"key": "value"}'></script>
         """
-        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+        script_tag_with_data_props = find_script_tag_with_data_props(html_content)
 
-        # When: extract_data_props_to_jsonを実行
-        result = extract_data_props_to_json(script_tag_with_embedded_data)
+        # When: parse_data_props_to_dictを実行
+        result = parse_data_props_to_dict(script_tag_with_data_props)
 
         # Then: 正しいJSONデータが辞書型で返される
         assert isinstance(result, dict)
-        assert result == {"key": "value"}
-
-    def test_missing_data_props(self) -> None:
-        """
-        スクリプトタグのdata-props属性が存在しない場合のテスト。
-        """
-        # Given: data-props属性がないHTML
-        html_content = """
-        <script id="embedded-data"></script>
-        """
-        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
-
-        # When & Then: data-propsがない場合はExceptionが発生
-        with pytest.raises(ValueError, match="data-props属性が不正です。"):
-            extract_data_props_to_json(script_tag_with_embedded_data)
+        expected_data_props_dict = {"key": "value"}
+        assert result == expected_data_props_dict
 
     def test_empty_data_props(self) -> None:
         """
@@ -209,26 +200,98 @@ class TestExtractDataPropsToJson:
         html_content = """
         <script id="embedded-data" data-props=""></script>
         """
-        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+        script_tag_with_data_props = find_script_tag_with_data_props(html_content)
 
         # When & Then: `ValueError` が発生
-        with pytest.raises(ValueError, match="data-props属性が不正です。"):
-            extract_data_props_to_json(script_tag_with_embedded_data)
-
-        # When & Then: `ValueError` が発生
-        with pytest.raises(ValueError, match="data-props属性が不正です。"):
-            extract_data_props_to_json(script_tag_with_embedded_data)
+        with pytest.raises(ValueError, match="data-props属性の値が空です。"):
+            parse_data_props_to_dict(script_tag_with_data_props)
 
     def test_invalid_json(self) -> None:
         """
         スクリプトタグのdata-props属性が無効なJSON形式の場合のテスト。
         """
-        # Given: 無効なJSONデータを含むHTML（value が "" で囲まれていない）
+        # Given: 無効なJSONデータ（value が "" で囲まれていない）を含むスクリプトタグ
         html_content = """
         <script id="embedded-data" data-props='{"key": value}'></script>
         """
-        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+        script_tag_with_embedded_data = find_script_tag_with_data_props(html_content)
 
         # When & Then: 無効なJSONの場合はjson.JSONDecodeErrorが発生
         with pytest.raises(json.JSONDecodeError):
-            extract_data_props_to_json(script_tag_with_embedded_data)
+            parse_data_props_to_dict(script_tag_with_embedded_data)
+
+
+class TestConvertUnixToJST:
+    """
+    convert_unix_to_jst 関数のテストクラス。
+    """
+
+    def test_valid_timestamp(self) -> None:
+        """
+        Unixタイムスタンプを日本時間に変換するテスト
+        """
+        # Given: 2025-01-29 06:00:00 UTC（JSTでは+9時間で15:00:00）
+        unix_time = 1738130400
+
+        # When: 関数を実行
+        result = convert_unix_to_jst(unix_time)
+
+        # Then: 期待するJSTの日時が返る
+        expected_jst = "2025-01-29 15:00:00"
+        assert result == expected_jst
+
+    def test_zero_timestamp(self) -> None:
+        """
+        Unixタイムスタンプが `0`（1970-01-01 00:00:00 UTC）の場合、JSTの `1970-01-01 09:00:00` になることを確認。
+        """
+        # Given: Unix Epoch（1970-01-01 00:00:00 UTC）
+        unix_time = 0
+
+        # When: 関数を実行
+        result = convert_unix_to_jst(unix_time)
+
+        # Then: JSTの09:00:00になる
+        expected_jst = "1970-01-01 09:00:00"
+        assert result == expected_jst
+
+    def test_negative_timestamp(self) -> None:
+        """
+        負のUnixタイムスタンプ（1970年以前）を渡したときに正しくJSTに変換されることを確認。
+        """
+        # Given: 1969-12-31 00:00:00 UTC（JSTでは+9時間で09:00:00）
+        unix_time = -86400  # 1日前（-1 * 60 * 60 * 24）
+
+        # When: 関数を実行
+        result = convert_unix_to_jst(unix_time)
+
+        # Then: JSTの08:00:00になる
+        expected_jst = "1969-12-31 09:00:00"
+        assert result == expected_jst
+
+    def test_large_timestamp(self) -> None:
+        """
+        未来のUnixタイムスタンプ（2038年問題などの境界値 + 1秒）を渡したときに正しくJSTに変換されることを確認。
+        """
+        # Given: 2038-01-19 03:14:08 UTC（JSTでは+9時間で12:14:08）
+        unix_time = 2147483648  # 2038年問題の境界値 + 1秒
+        expected_jst = "2038-01-19 12:14:08"
+
+        # When: 関数を実行
+        result = convert_unix_to_jst(unix_time)
+
+        # Then: 期待するJSTの日時が返る
+        assert result == expected_jst
+
+    def test_leap_year(self) -> None:
+        """
+        閏年のUnixタイムスタンプを日本時間に変換するテスト。
+        """
+        # Given: 2028-02-29 00:00:00 UTC（JSTでは+9時間で09:00:00）
+        unix_time = 1835395200
+
+        # When: convert_unix_to_jst関数を実行
+        result = convert_unix_to_jst(unix_time)
+
+        # Then: 正しい日本時間の日時が返される
+        expected_time = "2028-02-29 09:00:00"
+        assert result == expected_time
