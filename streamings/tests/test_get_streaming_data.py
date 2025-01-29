@@ -1,27 +1,30 @@
+import json
+
 import pytest
 import requests
 from bs4 import Tag
 from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
-    build_url,
+    build_streaming_url,
+    extract_data_props_to_json,
     fetch_html,
-    find_script_tag,
+    find_script_tag_with_embedded_data,
     get_default_headers,
 )
 
 
-def test_build_url(monkeypatch) -> None:
+def test_build_streaming_url(monkeypatch) -> None:
     """
-    build_url関数が配信IDから正しいURLを生成するかをテスト
+    build_streaming_url関数が配信IDから正しいURLを生成するかをテスト
     """
     # Given: 環境変数 "STREAMING_BASE_URL" が設定されており、配信IDが 123456789
     streaming_base_url = "https://live.nicovideo.jp/watch/lv"
     monkeypatch.setenv("STREAMING_BASE_URL", streaming_base_url)
     streaming_id = "123456789"
 
-    # When: build_url 関数を呼び出す
-    streaming_url = build_url(streaming_id)
+    # When: build_streaming_url 関数を呼び出す
+    streaming_url = build_streaming_url(streaming_id)
 
     # Then: 正しい配信URL（https://live.nicovideo.jp/watch/lv123456789）が生成される
     assert streaming_url == "https://live.nicovideo.jp/watch/lv123456789"
@@ -44,6 +47,10 @@ def test_get_default_headers() -> None:
 
 
 class TestFetchHtml:
+    """
+    fetch_html 関数のテストクラス。
+    """
+
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         """
@@ -91,7 +98,11 @@ class TestFetchHtml:
             fetch_html(self.url, self.headers)
 
 
-class TestFindScriptTag:
+class TestFindScriptTagWithEmbeddedData:
+    """
+    find_script_tag_with_embedded_data 関数のテストクラス。
+    """
+
     def test_success(self) -> None:
         """
         正しいスクリプトタグがHTML内に存在する場合のテスト
@@ -105,8 +116,8 @@ class TestFindScriptTag:
         </html>
         """
 
-        # When: find_script_tag関数を実行
-        script_tag = find_script_tag(valid_html)
+        # When: find_script_tag_with_embedded_data関数を実行
+        script_tag = find_script_tag_with_embedded_data(valid_html)
 
         # Then: 戻り値がTagオブジェクトで、正しい属性を持つ
         assert isinstance(script_tag, Tag)
@@ -128,8 +139,8 @@ class TestFindScriptTag:
         </html>
         """
 
-        # When: find_script_tag関数を実行
-        script_tag = find_script_tag(multiple_script_tags_html)
+        # When: find_script_tag_with_embedded_data関数を実行
+        script_tag = find_script_tag_with_embedded_data(multiple_script_tags_html)
 
         # Then: 取得したスクリプトタグのid属性が"embedded-data"であることを確認
         assert script_tag["id"] == "embedded-data"
@@ -149,6 +160,75 @@ class TestFindScriptTag:
 
         # When & Then: 例外が発生することを確認
         with pytest.raises(
-            Exception, match="指定されたスクリプトタグ（embedded-data）が見つかりませんでした。"
+            Exception, match='id="embedded-data"属性を持つスクリプトタグが見つかりませんでした。'
         ):
-            find_script_tag(invalid_html)
+            find_script_tag_with_embedded_data(invalid_html)
+
+
+class TestExtractDataPropsToJson:
+    """
+    extract_data_props_to_json 関数のテストクラス。
+    """
+
+    def test_success(self) -> None:
+        """
+        スクリプトタグのdata-props属性が正常なJSON形式で取得できる場合のテスト。
+        """
+        # Given: 正常なHTML
+        html_content = """
+        <script id="embedded-data" data-props='{"key": "value"}'></script>
+        """
+        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+
+        # When: extract_data_props_to_jsonを実行
+        result = extract_data_props_to_json(script_tag_with_embedded_data)
+
+        # Then: 正しいJSONデータが辞書型で返される
+        assert isinstance(result, dict)
+        assert result == {"key": "value"}
+
+    def test_missing_data_props(self) -> None:
+        """
+        スクリプトタグのdata-props属性が存在しない場合のテスト。
+        """
+        # Given: data-props属性がないHTML
+        html_content = """
+        <script id="embedded-data"></script>
+        """
+        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+
+        # When & Then: data-propsがない場合はExceptionが発生
+        with pytest.raises(ValueError, match="data-props属性が不正です。"):
+            extract_data_props_to_json(script_tag_with_embedded_data)
+
+    def test_empty_data_props(self) -> None:
+        """
+        `data-props` が空文字の場合、ValueError が発生することを確認。
+        """
+        # Given: `data-props=""` のスクリプトタグ
+        html_content = """
+        <script id="embedded-data" data-props=""></script>
+        """
+        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+
+        # When & Then: `ValueError` が発生
+        with pytest.raises(ValueError, match="data-props属性が不正です。"):
+            extract_data_props_to_json(script_tag_with_embedded_data)
+
+        # When & Then: `ValueError` が発生
+        with pytest.raises(ValueError, match="data-props属性が不正です。"):
+            extract_data_props_to_json(script_tag_with_embedded_data)
+
+    def test_invalid_json(self) -> None:
+        """
+        スクリプトタグのdata-props属性が無効なJSON形式の場合のテスト。
+        """
+        # Given: 無効なJSONデータを含むHTML（value が "" で囲まれていない）
+        html_content = """
+        <script id="embedded-data" data-props='{"key": value}'></script>
+        """
+        script_tag_with_embedded_data = find_script_tag_with_embedded_data(html_content)
+
+        # When & Then: 無効なJSONの場合はjson.JSONDecodeErrorが発生
+        with pytest.raises(json.JSONDecodeError):
+            extract_data_props_to_json(script_tag_with_embedded_data)
