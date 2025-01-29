@@ -131,12 +131,12 @@ def find_script_tag_with_data_props(html_content: str) -> Tag:
         Tag: data-props属性を含むスクリプトタグ。
 
     Raises:
-        Exception: 対象のスクリプトタグが見つからなかった場合。
+        Exception: data_props属性を含むスクリプトタグが見つからなかった場合。
     """
     soup = BeautifulSoup(html_content, "html.parser")
     script_tag_with_data_props = soup.find("script", attrs={"data-props": True})
     if not isinstance(script_tag_with_data_props, Tag):
-        raise Exception("data_props属性を持つスクリプトタグが見つかりませんでした。")
+        raise Exception("data_props属性を含むスクリプトタグが見つかりませんでした。")
     return script_tag_with_data_props
 
 
@@ -151,7 +151,7 @@ def parse_data_props_to_dict(script_tag_with_embedded_data: Tag) -> dict:
         dict: 辞書型にパースされたJSONデータ。
 
     Raises:
-        Exception: data-props属性が見つからなかった場合。
+        Exception: data-props属性の値が空の場合。
     """
     data_props = str(script_tag_with_embedded_data["data-props"])
     if data_props.strip() == "":
@@ -188,6 +188,9 @@ def calculate_duration(start_time: int, end_time: int) -> str:
     Returns:
         str: 配信時間（例: "HH:MM:SS"）。
     """
+    if end_time < start_time:
+        raise ValueError("終了時間は開始時間より後である必要があります。")
+
     duration_seconds = end_time - start_time
     hours, remainder = divmod(duration_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)

@@ -7,6 +7,7 @@ from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
     build_streaming_url,
+    calculate_duration,
     convert_unix_to_jst,
     fetch_html,
     find_script_tag_with_data_props,
@@ -164,7 +165,7 @@ class TestFindScriptTagWithDataProps:
 
         # When & Then: 例外が発生することを確認
         with pytest.raises(
-            Exception, match="data_props属性を持つスクリプトタグが見つかりませんでした。"
+            Exception, match="data_props属性を含むスクリプトタグが見つかりませんでした。"
         ):
             find_script_tag_with_data_props(invalid_html)
 
@@ -295,3 +296,81 @@ class TestConvertUnixToJST:
         # Then: 正しい日本時間の日時が返される
         expected_time = "2028-02-29 09:00:00"
         assert result == expected_time
+
+
+class TestCalculateDuration:
+    """
+    calculate_duration 関数のテストクラス。
+    """
+
+    def test_standard_duration(self) -> None:
+        """
+        時間、分、秒を含む場合のテスト。
+        """
+        # Given: 開始時間と終了時間のUnixタイムスタンプ
+        start_time = 1738137600  # 2025-01-29 17:00:00 JST
+        end_time = 1738142755  # 2025-01-29 18:25:55 JST
+
+        # When: 関数を実行
+        result = calculate_duration(start_time, end_time)
+
+        # Then: 期待する出力と一致
+        expected_duration = "01:25:55"
+        assert result == expected_duration
+
+    def test_short_duration(self) -> None:
+        """
+        分、秒のみを含む短い場合のテスト。
+        """
+        # Given: 配信開始時間と終了時間のUnixタイムスタンプ
+        start_time = 1738142755  # 2025-01-29 18:25:55 JST
+        end_time = 1738143201  # 2025-01-29 18:33:21 JST
+
+        # When: calculate_duration関数を実行
+        result = calculate_duration(start_time, end_time)
+
+        # Then: 正しい配信時間が返される
+        expected_duration = "00:07:26"
+        assert result == expected_duration
+
+    def test_exact_hour_duration(self) -> None:
+        """
+        ちょうど2時間の場合のテスト。
+        """
+        # Given: 2時間
+        start_time = 1738141200  # 2025-01-29 18:00:00 JST
+        end_time = 1738148400  # 2025-01-29 20:00:00 JST
+
+        # When: 関数を実行
+        result = calculate_duration(start_time, end_time)
+
+        # Then: 期待する出力と一致
+        excepted_duration = "02:00:00"
+        assert result == excepted_duration
+
+    def test_no_duration(self) -> None:
+        """
+        配信開始時間と終了時間が同じ場合のテスト。
+        """
+        # Given: 配信開始時間と終了時間のUnixタイムスタンプが同じ
+        start_time = 1738148400  # 2025-01-29 20:00:00 JST
+        end_time = 1738148400  # 2025-01-29 20:00:00 JST
+
+        # When: calculate_duration関数を実行
+        result = calculate_duration(start_time, end_time)
+
+        # Then: 配信時間が "00:00:00" であることを確認
+        expected_duration = "00:00:00"
+        assert result == expected_duration
+
+    def test_negative_duration(self) -> None:
+        """
+        `end_time` が `start_time` よりも前の場合、ValueError が発生することを確認。
+        """
+        # Given: 異常なデータ（開始時間が終了時間よりも後）
+        start_time = 1700000100
+        end_time = 1700000000  # 100秒前
+
+        # When & Then: `ValueError` を発生させる
+        with pytest.raises(ValueError, match="終了時間は開始時間より後である必要があります。"):
+            calculate_duration(start_time, end_time)
