@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 import requests
@@ -14,6 +15,7 @@ from streamings.services.get_streaming_data import (
     fetch_html,
     find_script_tag_with_data_props,
     get_default_headers,
+    parse_args,
     parse_data_props_to_dict,
 )
 
@@ -401,6 +403,8 @@ class TestExtractStreamingData:
         """
         正常な辞書データを渡した場合に StreamingData オブジェクトが正しく生成されることを確認。
         """
+        # Given: 正常な辞書データ（fixture で作成ずみ)
+
         # When: 関数を実行
         result = extract_streaming_data(valid_dict_data)
 
@@ -431,6 +435,7 @@ class TestExtractStreamingData:
         """
         必須フィールドが欠落している場合に例外が発生することを確認。
         """
+        # Given: 必須フィールドを削除
         field_name, expected_message = missing_field
         program_or_supplier = valid_dict_data["program"]
 
@@ -444,3 +449,35 @@ class TestExtractStreamingData:
         # When & Then: 例外が発生することを確認
         with pytest.raises(ValueError, match=expected_message):
             extract_streaming_data(valid_dict_data)
+
+
+class TestParseArgs:
+    """
+    parse_args 関数のテストクラス
+    """
+
+    def test_valid_args(self) -> None:
+        """
+        正しい引数を渡した場合、Namespace に正しく格納されることを確認する。
+        """
+        # Given: コマンドライン引数に `streaming_id` を含めたリストを作成
+        test_args = ["script.py", "346883570"]
+
+        # When: `sys.argv` をモックし、`parse_args()` を実行
+        with patch("sys.argv", test_args):
+            args = parse_args()
+
+        # Then: `args.streaming_id` が "346883570" であることを確認
+        assert args.streaming_id == "346883570"
+
+    def test_missing_args(self) -> None:
+        """
+        引数を渡さなかった場合、エラーが発生することを確認する。
+        """
+        # Given: `streaming_id` を渡さず `sys.argv` をモック
+        test_args = ["script.py"]  # `streaming_id` がない
+
+        # When & Then: `parse_args()` を実行すると `SystemExit` が発生することを確認
+        with patch("sys.argv", test_args):
+            with pytest.raises(SystemExit):  # argparse はエラー時に `SystemExit` を発生させる
+                parse_args()
