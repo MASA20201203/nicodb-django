@@ -64,9 +64,7 @@ def run(streaming_id: str) -> StreamingData:
     headers = get_default_headers()
     html_content = fetch_html(url, headers)
     script_tag_with_data_props = find_script_tag_with_data_props(html_content)
-    # print(script_tag_with_data_props)
     data_props_dict = parse_data_props_to_dict(script_tag_with_data_props)
-    # print(json_data)
     return extract_streaming_data(data_props_dict)
 
 
