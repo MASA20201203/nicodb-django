@@ -42,9 +42,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install -r requirements.txt
 
-# Switch to the non-privileged user to run the application.
-USER appuser
-
 # Copy the source code into the container.
 COPY . .
 
@@ -52,11 +49,14 @@ COPY . .
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+# Switch to the non-privileged user to run the application.
+USER appuser
+
 # Expose the port that the application listens on.
 EXPOSE 8080
 
 # Set the entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Run the application.
 CMD ["gunicorn", "nicodb.wsgi:application", "--bind=0.0.0.0:8080"]
