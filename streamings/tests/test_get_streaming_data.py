@@ -6,9 +6,11 @@ from bs4 import Tag
 from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
+    StreamingData,
     build_streaming_url,
     calculate_duration,
     convert_unix_to_jst,
+    extract_streaming_data,
     fetch_html,
     find_script_tag_with_data_props,
     get_default_headers,
@@ -374,3 +376,71 @@ class TestCalculateDuration:
         # When & Then: `ValueError` を発生させる
         with pytest.raises(ValueError, match="終了時間は開始時間より後である必要があります。"):
             calculate_duration(start_time, end_time)
+
+
+class TestExtractStreamingData:
+    """
+    extract_streaming_data 関数のテストクラス。
+    """
+
+    @pytest.fixture
+    def valid_dict_data(self) -> dict:
+        """入力となる配信データ（辞書型）を返すフィクスチャ"""
+        return {
+            "program": {
+                "nicoliveProgramId": "lv346883570",
+                "title": "ドライブ配信",
+                "supplier": {"name": "3時サブ垢", "programProviderId": "52053485"},
+                "beginTime": 1737936000,
+                "endTime": 1737950400,
+                "status": "ENDED",
+            }
+        }
+
+    def test_valid_dict_data(self, valid_dict_data) -> None:
+        """
+        正常な辞書データを渡した場合に StreamingData オブジェクトが正しく生成されることを確認。
+        """
+        # When: 関数を実行
+        result = extract_streaming_data(valid_dict_data)
+
+        # Then: 期待する StreamingData オブジェクトが生成される
+        assert isinstance(result, StreamingData)
+        assert result.id == "346883570"  # "lv" が削除されている
+        assert result.title == "ドライブ配信"
+        assert result.time_begin == "2025-01-27 09:00:00"
+        assert result.time_end == "2025-01-27 13:00:00"
+        assert result.time_duration == "04:00:00"
+        assert result.status == "ENDED"
+        assert result.streamer_id == "52053485"
+        assert result.streamer_name == "3時サブ垢"
+
+    @pytest.mark.parametrize(
+        "missing_field",
+        [
+            ("nicoliveProgramId", "必須データが見つかりませんでした: nicoliveProgramId"),
+            ("title", "必須データが見つかりませんでした: title"),
+            ("beginTime", "必須データが見つかりませんでした: beginTime"),
+            ("endTime", "必須データが見つかりませんでした: endTime"),
+            ("status", "必須データが見つかりませんでした: status"),
+            ("programProviderId", "必須データが見つかりませんでした: programProviderId"),
+            ("name", "必須データが見つかりませんでした: name"),
+        ],
+    )
+    def test_missing_required_fields(self, valid_dict_data, missing_field) -> None:
+        """
+        必須フィールドが欠落している場合に例外が発生することを確認。
+        """
+        field_name, expected_message = missing_field
+        program_or_supplier = valid_dict_data["program"]
+
+        # supplier の場合
+        if field_name in ["programProviderId", "name"]:
+            program_or_supplier = program_or_supplier["supplier"]
+
+        # フィールドを削除
+        del program_or_supplier[field_name]
+
+        # When & Then: 例外が発生することを確認
+        with pytest.raises(ValueError, match=expected_message):
+            extract_streaming_data(valid_dict_data)
