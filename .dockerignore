@@ -34,3 +34,18 @@
 **/values.dev.yaml
 LICENSE
 README.md
+
+### ここから独自設定
+
+# キャッシュ
+*_cache/
+
+# やることリスト
+todo.md
+
+# メモ
+memo.md
+
+# 一時ファイル
+streamings/services/*.json
+streamings/services/*.html

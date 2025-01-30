@@ -33,3 +33,12 @@
 |  Nginx    | -----> | Docker Container|
 +-----------+        +-----------------+
 ```
+
+## CI/CD
+
+```mermaid
+graph TD;
+  開発者 -->|push| GitHub;
+  GitHub -->|CI/CD| Docker Build;
+  Docker Build -->|Deploy| 本番環境;
+```

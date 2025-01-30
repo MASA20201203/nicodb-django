@@ -48,8 +48,15 @@ USER appuser
 # Copy the source code into the container.
 COPY . .
 
+# Copy the entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Expose the port that the application listens on.
 EXPOSE 8080
+
+# Set the entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Run the application.
 CMD ["gunicorn", "nicodb.wsgi:application", "--bind=0.0.0.0:8080"]
