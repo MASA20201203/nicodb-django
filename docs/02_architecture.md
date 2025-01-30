@@ -14,7 +14,7 @@
 ## インフラ
 
 - Docker 26.1.3
-- PostgreSQL 16.0
+- PostgreSQL 17.2
 
 ## VPS
 

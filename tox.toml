@@ -17,6 +17,7 @@ deps = [
     "mypy",
     "django-stubs[compatible-mypy]",
     "pytest",
+    "psycopg",
     "python-dotenv",
     "requests-mock",
     "types-beautifulsoup4",
