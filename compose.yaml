@@ -37,8 +37,8 @@ services:
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql/data
-    expose:
-      - 5432
+    ports:
+      - "5432:5432"
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "${DATABASE_USER}", "-d", "${DATABASE_NAME}" ]
       interval: 10s
