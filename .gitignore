@@ -176,11 +176,10 @@ cython_debug/
 # ruff
 .ruff_cache/
 
-# やることリスト
+# ドキュメント
 todo.md
-
-# メモ
 memo.md
+retrospective.md
 
 # 一時ファイル
 streamings/services/*.json
