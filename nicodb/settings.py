@@ -15,6 +15,8 @@ from pathlib import Path
 
 import dotenv
 
+dotenv.load_dotenv()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-3gu31_+6p4ef36dcp8-l(_@w8&oe&$34)+!61q7@_pc8o3&uhc"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS: list[str] = [
     "0.0.0.0",
@@ -83,8 +85,6 @@ WSGI_APPLICATION = "nicodb.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-dotenv.load_dotenv()
 
 DATABASES = {
     "default": {
