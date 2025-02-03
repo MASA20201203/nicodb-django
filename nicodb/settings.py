@@ -134,3 +134,12 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+## デプロイ設定
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000  # HSTS を有効化し、1年間 HTTPS のみ許可
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True  # サブドメインにも HSTS を適用
+    SECURE_HSTS_PRELOAD = True  # HSTS プリロードリストに登録（初回アクセス時から HTTPS のみで接続）
+    SECURE_SSL_REDIRECT = True  # HTTP へのアクセスを HTTPS にリダイレクト
+    SESSION_COOKIE_SECURE = True  # セッションクッキーを HTTPS でのみ送信
+    CSRF_COOKIE_SECURE = True  # CSRF クッキーを HTTPS でのみ送信
