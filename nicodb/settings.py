@@ -30,14 +30,7 @@ SECRET_KEY = "django-insecure-3gu31_+6p4ef36dcp8-l(_@w8&oe&$34)+!61q7@_pc8o3&uhc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS: list[str] = [
-    "0.0.0.0",
-    "localhost",
-    "127.0.0.1",
-    "160.251.54.227",
-    "django.nicodb.net",
-]
-
+ALLOWED_HOSTS: list[str] = os.getenv("ALLOWED_HOSTS", "").split(",")
 
 # Application definition
 
