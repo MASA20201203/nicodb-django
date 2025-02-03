@@ -141,5 +141,6 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True  # サブドメインにも HSTS を適用
     SECURE_HSTS_PRELOAD = True  # HSTS プリロードリストに登録（初回アクセス時から HTTPS のみで接続）
     SECURE_SSL_REDIRECT = True  # HTTP へのアクセスを HTTPS にリダイレクト
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # プロキシ経由の場合もHTTPSで通信
     SESSION_COOKIE_SECURE = True  # セッションクッキーを HTTPS でのみ送信
     CSRF_COOKIE_SECURE = True  # CSRF クッキーを HTTPS でのみ送信
