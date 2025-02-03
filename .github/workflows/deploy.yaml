@@ -48,6 +48,7 @@ jobs:
       - name: 単体テストを実行
         env:
           SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DEBUG: ${{ secrets.DJANGO_DEBUG }}
         run: pytest
 
   deploy:
