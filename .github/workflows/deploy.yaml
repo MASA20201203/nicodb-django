@@ -26,8 +26,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: リントを実行
-        env:
-          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         run: tox
 
   test:

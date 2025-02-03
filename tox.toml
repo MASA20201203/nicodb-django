@@ -23,4 +23,5 @@ deps = [
     "types-beautifulsoup4",
     "types-requests",
     ]
+set_env = { SECRET_KEY = "bw7ytnwg+eo3mkh32#*liibr4v5nh@9kf)%2j=cw7nsz$_d(aa" }
 commands = [[ "mypy", "." ]]
