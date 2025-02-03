@@ -5,6 +5,7 @@ omit =
     */migrations/*
     nicodb/asgi.py
     nicodb/wsgi.py
+    nicodb/settings.py
 
 [report]
 show_missing = True
