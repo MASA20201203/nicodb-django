@@ -50,7 +50,7 @@ COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # 静的ファイル用のディレクトリを作成し、権限を設定
-RUN mkdir -p /app/staticfiles && chown appuser:appuser /app/staticfiles
+RUN mkdir -p /app/staticfiles && chown appuser:appuser /app/staticfiles && chmod 755 /app/staticfiles
 
 # Switch to the non-privileged user to run the application.
 USER appuser
