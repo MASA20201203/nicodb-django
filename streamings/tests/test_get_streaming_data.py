@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 import requests
 from bs4 import Tag
+from django.conf import settings
 from requests_mock import Mocker
 
 from streamings.services.get_streaming_data import (
@@ -26,15 +27,15 @@ def test_build_streaming_url(monkeypatch) -> None:
     """
     # Given: 環境変数 "STREAMING_BASE_URL" が設定されており、配信IDが 123456789
     streaming_base_url = "https://live.nicovideo.jp/watch/lv"
-    monkeypatch.setenv("STREAMING_BASE_URL", streaming_base_url)
+    monkeypatch.setattr(settings, "STREAMING_BASE_URL", streaming_base_url)
     streaming_id = "123456789"
 
     # When: build_streaming_url 関数を呼び出す
     result = build_streaming_url(streaming_id)
 
     # Then: 正しい配信URL（https://live.nicovideo.jp/watch/lv123456789）が生成される
-    excepted_streaming_url = "https://live.nicovideo.jp/watch/lv123456789"
-    assert result == excepted_streaming_url
+    expected_streaming_url = "https://live.nicovideo.jp/watch/lv123456789"
+    assert result == expected_streaming_url
 
 
 def test_get_default_headers() -> None:
