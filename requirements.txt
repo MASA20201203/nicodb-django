@@ -12,6 +12,7 @@ colorama==0.4.6
 coverage==7.6.10
 distlib==0.3.9
 Django==5.1.5
+django-axes==7.0.1
 django-stubs==5.1.2
 django-stubs-ext==5.1.2
 filelock==3.16.1

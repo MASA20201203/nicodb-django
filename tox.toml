@@ -14,10 +14,11 @@ commands = [[ "ruff", "check", "." ]]
 [env.mypy]
 description = "Run mypy: 型チェック"
 deps = [
-    "mypy",
+    "django-axes",
     "django-stubs[compatible-mypy]",
-    "pytest",
+    "mypy",
     "psycopg",
+    "pytest",
     "python-dotenv",
     "requests-mock",
     "types-beautifulsoup4",

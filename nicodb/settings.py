@@ -11,15 +11,17 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import socket
 from pathlib import Path
 
-import dotenv
-
-dotenv.load_dotenv()
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# .envファイルのパスを指定
+dotenv_path = BASE_DIR / ".env"
+load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -44,6 +46,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # 3rd party apps
+    "axes",  # 管理画面のログイン試行回数制限
     # My apps
     "streamings",
 ]
@@ -56,6 +60,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # 3rd party middleware
+    "axes.middleware.AxesMiddleware",  # 管理画面のログイン試行回数制限
+]
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    # 3rd party backends
+    "axes.backends.AxesStandaloneBackend",
 ]
 
 ROOT_URLCONF = "nicodb.urls"
@@ -82,13 +94,16 @@ WSGI_APPLICATION = "nicodb.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# Docker コンテナ内で実行されているか判別
+IS_RUNNING_IN_DOCKER = os.path.exists("/.dockerenv") or socket.gethostname() == "server"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DATABASE_NAME"),
         "USER": os.getenv("DATABASE_USER"),
         "PASSWORD": os.getenv("DATABASE_PASSWORD"),
-        "HOST": os.getenv("DATABASE_HOST"),
+        "HOST": os.getenv("DATABASE_HOST") if IS_RUNNING_IN_DOCKER else "localhost",
         "PORT": os.getenv("DATABASE_PORT"),
     }
 }
@@ -147,3 +162,8 @@ if not DEBUG:
 
 # 管理画面
 ADMIN_URL = os.getenv("ADMIN_URL", "admin")
+AXES_FAILURE_LIMIT = int(os.getenv("AXES_FAILURE_LIMIT", 5))
+AXES_COOLOFF_TIME = int(os.getenv("AXES_COOLOFF_TIME", 1))
+AXES_LOCKOUT_PARAMETERS = os.getenv("AXES_LOCKOUT_PARAMETERS", "username,ip_address").split(",")
+AXES_VERBOSE = True
+AXES_ENABLE_ACCESS_FAILURE_LOG = True
