@@ -144,3 +144,6 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # プロキシ経由の場合もHTTPSで通信
     SESSION_COOKIE_SECURE = True  # セッションクッキーを HTTPS でのみ送信
     CSRF_COOKIE_SECURE = True  # CSRF クッキーを HTTPS でのみ送信
+
+# 管理画面
+ADMIN_URL = os.getenv("ADMIN_URL", "admin")
