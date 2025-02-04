@@ -16,12 +16,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+load_dotenv()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# .envファイルのパスを指定
-dotenv_path = BASE_DIR / ".env"
-load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -167,3 +165,6 @@ AXES_COOLOFF_TIME = int(os.getenv("AXES_COOLOFF_TIME", 1))
 AXES_LOCKOUT_PARAMETERS = os.getenv("AXES_LOCKOUT_PARAMETERS", "username,ip_address").split(",")
 AXES_VERBOSE = True
 AXES_ENABLE_ACCESS_FAILURE_LOG = True
+
+# データ取得処理
+STREAMING_BASE_URL = os.getenv("STREAMING_BASE_URL")

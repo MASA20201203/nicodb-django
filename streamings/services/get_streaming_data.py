@@ -21,17 +21,13 @@
 
 import argparse
 import json
-import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import requests
 from bs4 import BeautifulSoup, Tag
-from dotenv import load_dotenv
-
-# .envファイルから環境変数を読み込む
-load_dotenv()
+from django.conf import settings
 
 
 @dataclass
@@ -79,7 +75,7 @@ def build_streaming_url(streaming_id: str) -> str:
         streaming_url（str）: 配信URL。
     """
     # 環境変数からベースURLを取得
-    streaming_base_url = os.getenv("STREAMING_BASE_URL")
+    streaming_base_url = settings.STREAMING_BASE_URL
     streaming_url = f"{streaming_base_url}{streaming_id}"
     return streaming_url
 
