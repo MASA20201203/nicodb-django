@@ -184,3 +184,6 @@ retrospective.md
 # 一時ファイル
 streamings/services/*.json
 streamings/services/*.html
+
+# 静的ファイル
+staticfiles/
