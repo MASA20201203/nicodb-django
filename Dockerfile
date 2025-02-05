@@ -49,9 +49,6 @@ COPY . .
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# 静的ファイル用のディレクトリを作成し、権限を設定
-RUN mkdir -p /app/staticfiles && chown www-data:www-data /app/staticfiles
-
 # Switch to the non-privileged user to run the application.
 USER www-data
 
