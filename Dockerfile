@@ -50,7 +50,7 @@ COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Switch to the non-privileged user to run the application.
-USER www-data
+USER appuser
 
 # Expose the port that the application listens on.
 EXPOSE 8080
