@@ -30,6 +30,8 @@ from django.conf import settings
 from django.core.management import CommandParser
 from django.core.management.base import BaseCommand
 
+from streamings.models import Streamer, Streaming
+
 
 @dataclass
 class StreamingData:
@@ -53,12 +55,19 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:  # pragma: no cover
         """
         コマンドライン引数を追加する
+
+        Args:
+            parser (CommandParser): コマンドライン引数を解析するためのパーサー
         """
         parser.add_argument("streaming_id", type=str, help="配信ID（例: 346883570）")
 
     def handle(self, **options: dict[str, Any]) -> None:
         """
-        コマンドのメイン処理
+        コマンドのメイン処理。
+        配信データを取得し、データベースに保存する。
+
+        Args:
+            options (dict[str, Any]): コマンドライン引数（streaming_id など）。
         """
         try:
             streaming_id = str(options["streaming_id"])
@@ -68,7 +77,8 @@ class Command(BaseCommand):
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
-            self.print_streamng_data(extracted_streaming_data)
+            self.print_streamng_data(extracted_streaming_data)  # デバッグ用 あとで削除 TODO
+            self.save_streaming_data(extracted_streaming_data)
         except Exception as e:
             print(f"予期しないエラー: {e}")
 
@@ -260,3 +270,43 @@ class Command(BaseCommand):
         """
         for key, value in extracted_streaming_data.__dict__.items():
             print(f"{key}: {value}")
+
+    @classmethod
+    def save_streaming_data(cls, streaming_data: StreamingData) -> None:
+        """
+        取得した配信データをデータベースに保存する。
+
+        - 既存の配信者 (`Streamer`) があれば取得し、なければ新規作成。
+        - 既存の配信 (`Streaming`) があれば更新し、なければ新規作成。
+
+        Args:
+            streaming_data (StreamingData): 保存対象の配信データ。
+
+        Raises:
+            ValueError: streaming_data の一部データが不足している場合。
+        """
+        # 配信者（Streamer）を取得 or 作成
+        streamer, _ = Streamer.objects.get_or_create(
+            streamer_id=streaming_data.streamer_id,
+            defaults={"name": streaming_data.streamer_name},
+        )
+
+        # 配信（Streaming）を作成 or 更新
+        streaming, created = Streaming.objects.update_or_create(
+            streaming_id=streaming_data.id,
+            defaults={
+                "title": streaming_data.title,
+                "start_time": streaming_data.time_begin,
+                "end_time": streaming_data.time_end,
+                "duration_time": timedelta(seconds=int(streaming_data.time_duration)),
+                "status": streaming_data.status,
+                "streamer_id": streamer,  # Streamer のインスタンスを渡す
+            },
+        )
+
+        if created:
+            cls.stdout.write(
+                cls.style.SUCCESS(f"新しい配信データを保存しました: {streaming.title}")
+            )
+        else:
+            cls.stdout.write(cls.style.SUCCESS(f"配信データを更新しました: {streaming.title}"))
