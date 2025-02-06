@@ -217,7 +217,7 @@ class TestParseDataPropsToDict:
 
 class TestConvertUnixToJST:
     """
-    convert_unix_to_jst 関数のテストクラス。
+    convert_unix_to_aware_datetime 関数のテストクラス。
     """
 
     def test_valid_timestamp(self) -> None:
@@ -228,7 +228,7 @@ class TestConvertUnixToJST:
         unix_time = 1738130400
 
         # When: 関数を実行
-        result = Command.convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_aware_datetime(unix_time)
 
         # Then: 期待するJSTの日時が返る
         expected_jst = "2025-01-29 15:00:00"
@@ -242,7 +242,7 @@ class TestConvertUnixToJST:
         unix_time = 0
 
         # When: 関数を実行
-        result = Command.convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_aware_datetime(unix_time)
 
         # Then: JSTの09:00:00になる
         expected_jst = "1970-01-01 09:00:00"
@@ -256,7 +256,7 @@ class TestConvertUnixToJST:
         unix_time = -86400  # 1日前（-1 * 60 * 60 * 24）
 
         # When: 関数を実行
-        result = Command.convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_aware_datetime(unix_time)
 
         # Then: JSTの08:00:00になる
         expected_jst = "1969-12-31 09:00:00"
@@ -271,7 +271,7 @@ class TestConvertUnixToJST:
         expected_jst = "2038-01-19 12:14:08"
 
         # When: 関数を実行
-        result = Command.convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_aware_datetime(unix_time)
 
         # Then: 期待するJSTの日時が返る
         assert result == expected_jst
@@ -283,8 +283,8 @@ class TestConvertUnixToJST:
         # Given: 2028-02-29 00:00:00 UTC（JSTでは+9時間で09:00:00）
         unix_time = 1835395200
 
-        # When: convert_unix_to_jst関数を実行
-        result = Command.convert_unix_to_jst(unix_time)
+        # When: convert_unix_to_aware_datetime関数を実行
+        result = Command.convert_unix_to_aware_datetime(unix_time)
 
         # Then: 正しい日本時間の日時が返される
         expected_time = "2028-02-29 09:00:00"

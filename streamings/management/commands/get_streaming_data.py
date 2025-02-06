@@ -21,7 +21,8 @@
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from typing import Any
 
 import requests
@@ -29,6 +30,7 @@ from bs4 import BeautifulSoup, Tag
 from django.conf import settings
 from django.core.management import CommandParser
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from streamings.models import Streamer, Streaming
 
@@ -41,8 +43,8 @@ class StreamingData:
 
     id: str
     title: str
-    time_begin: str
-    time_end: str
+    time_begin: datetime
+    time_end: datetime
     time_duration: str
     status: str
     streamer_id: str
@@ -77,7 +79,6 @@ class Command(BaseCommand):
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
-            self.print_streamng_data(extracted_streaming_data)  # デバッグ用 あとで削除 TODO
             self.save_streaming_data(extracted_streaming_data)
         except Exception as e:
             print(f"予期しないエラー: {e}")
@@ -180,21 +181,23 @@ class Command(BaseCommand):
         return data_props_dict
 
     @staticmethod
-    def convert_unix_to_jst(unix_time: int) -> str:
+    def convert_unix_to_aware_datetime(unix_time: int) -> datetime:
         """
-        Unixタイムスタンプを日本時間に変換する。
+        Unixタイムスタンプを Django のタイムゾーン設定に基づいた `aware datetime` に変換する。
 
         Args:
             unix_time (int): Unixタイムスタンプ。
 
         Returns:
-            str: 日本時間の日時（例: 2025-01-28 12:00:00）。
+            datetime: タイムゾーン付きの `aware datetime`（Django の `TIME_ZONE` に基づく）
         """
-        # タイムゾーンを日本時間（UTC+9）に設定
-        jst = timezone(timedelta(hours=9))
-        # Unixタイムスタンプを日本時間に変換
-        dt = datetime.fromtimestamp(unix_time, jst)
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
+        # Unixタイムスタンプを UTC の datetime に変換
+        dt_utc = datetime.fromtimestamp(unix_time, dt_timezone.utc)
+
+        # Django の `TIME_ZONE` に変換
+        dt_local = timezone.localtime(dt_utc)
+
+        return dt_local  # Django の `TIME_ZONE` に基づいた aware datetime を返す
 
     @staticmethod
     def calculate_duration(start_time: int, end_time: int) -> str:
@@ -238,8 +241,8 @@ class Command(BaseCommand):
             streaming_data = {
                 "id": program["nicoliveProgramId"].removeprefix("lv"),
                 "title": program["title"],
-                "time_begin": program["beginTime"],
-                "time_end": program["endTime"],
+                "time_begin": cls.convert_unix_to_aware_datetime(program["beginTime"]),
+                "time_end": cls.convert_unix_to_aware_datetime(program["endTime"]),
                 "status": program["status"],
                 "streamer_id": supplier["programProviderId"],
                 "streamer_name": supplier["name"],
@@ -247,11 +250,7 @@ class Command(BaseCommand):
         except KeyError as e:
             raise ValueError(f"必須データが見つかりませんでした: {e.args[0]}") from e
 
-        # UnixタイムスタンプをJSTに変換
-        streaming_data["time_begin"] = cls.convert_unix_to_jst(streaming_data["time_begin"])
-        streaming_data["time_end"] = cls.convert_unix_to_jst(streaming_data["time_end"])
-
-        # 配信時間を計算
+        # 配信時間を算出して streaming_data に追加
         streaming_data["time_duration"] = cls.calculate_duration(
             program["beginTime"], program["endTime"]
         )
@@ -259,54 +258,79 @@ class Command(BaseCommand):
         return StreamingData(**streaming_data)
 
     @classmethod
-    def print_streamng_data(
-        cls, extracted_streaming_data: StreamingData
-    ) -> None:  # pragma: no cover
+    def save_or_get_streamer(cls, streamer_id: int, streamer_name: str) -> Streamer:
         """
-        抽出した配信データを表示する。
+        配信者情報を保存または取得する。
+
+        - `streamer_id` が既に存在し、名前が同じ場合は既存のレコードを返す。
+        - `streamer_id` が存在するが名前が異なる場合、新規レコードを作成して履歴を保持する。
 
         Args:
-            extracted_streaming_data (StreamingData): 抽出した配信データ。
+            streamer_id (int): 配信者ID
+            streamer_name (str): 配信者名
+
+        Returns:
+            Streamer: 最新の配信者インスタンス
         """
-        for key, value in extracted_streaming_data.__dict__.items():
-            print(f"{key}: {value}")
-
-    @classmethod
-    def save_streaming_data(cls, streaming_data: StreamingData) -> None:
-        """
-        取得した配信データをデータベースに保存する。
-
-        - 既存の配信者 (`Streamer`) があれば取得し、なければ新規作成。
-        - 既存の配信 (`Streaming`) があれば更新し、なければ新規作成。
-
-        Args:
-            streaming_data (StreamingData): 保存対象の配信データ。
-
-        Raises:
-            ValueError: streaming_data の一部データが不足している場合。
-        """
-        # 配信者（Streamer）を取得 or 作成
-        streamer, _ = Streamer.objects.get_or_create(
-            streamer_id=streaming_data.streamer_id,
-            defaults={"name": streaming_data.streamer_name},
+        latest_streamer = (
+            Streamer.objects.filter(streamer_id=streamer_id).order_by("-created_at").first()
         )
 
-        # 配信（Streaming）を作成 or 更新
+        # 名前が変更されていた場合、新規作成
+        if not latest_streamer or latest_streamer.name != streamer_name:
+            streamer = Streamer.objects.create(
+                streamer_id=streamer_id,
+                name=streamer_name,
+            )
+        else:
+            streamer = latest_streamer  # 名前が変更されていなければ最新のレコードを使用
+
+        return streamer
+
+    @classmethod
+    def save_or_update_streaming(cls, streaming_data: StreamingData, streamer: Streamer) -> None:
+        """
+        配信データを保存または更新する。
+
+        - `streaming_id` が既に存在する場合は更新。
+        - 存在しない場合は新規作成。
+
+        Args:
+            streaming_data (StreamingData): 保存対象の配信データ
+            streamer (Streamer): 紐付ける配信者インスタンス
+        """
         streaming, created = Streaming.objects.update_or_create(
             streaming_id=streaming_data.id,
             defaults={
                 "title": streaming_data.title,
                 "start_time": streaming_data.time_begin,
                 "end_time": streaming_data.time_end,
-                "duration_time": timedelta(seconds=int(streaming_data.time_duration)),
+                "duration_time": streaming_data.time_duration,
                 "status": streaming_data.status,
-                "streamer_id": streamer,  # Streamer のインスタンスを渡す
+                "streamer": streamer,  # Streamer のインスタンスを紐付け
             },
         )
 
-        if created:
-            cls.stdout.write(
-                cls.style.SUCCESS(f"新しい配信データを保存しました: {streaming.title}")
+    @classmethod
+    def save_streaming_data(cls, streaming_data: StreamingData) -> None:
+        """
+        取得した配信データをデータベースに保存する。
+
+        - 配信者情報 (`Streamer`) を保存または取得する
+        - 配信データ (`Streaming`) を保存または更新する
+
+        Args:
+            streaming_data (StreamingData): 保存対象の配信データ
+        """
+        try:
+            # 配信者情報の保存・取得
+            streamer = cls.save_or_get_streamer(
+                streamer_id=int(streaming_data.streamer_id),
+                streamer_name=streaming_data.streamer_name,
             )
-        else:
-            cls.stdout.write(cls.style.SUCCESS(f"配信データを更新しました: {streaming.title}"))
+
+            # 配信データの保存・更新
+            cls.save_or_update_streaming(streaming_data, streamer)
+
+        except Exception as e:
+            print(f"配信データの保存に失敗しました: {e}")

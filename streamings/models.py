@@ -12,6 +12,22 @@ class Streamer(models.Model):
     def __str__(self):
         return self.name
 
+    @staticmethod
+    def get_latest_name(streamer_id: int) -> str:
+        """
+        指定した `streamer_id` の最新の名前を取得する。
+
+        Args:
+            streamer_id (int): 取得したい配信者のID。
+
+        Returns:
+            str: 最新の配信者名。該当する配信者がいない場合は "不明" を返す。
+        """
+        latest_streamer = (
+            Streamer.objects.filter(streamer_id=streamer_id).order_by("-created_at").first()
+        )
+        return latest_streamer.name if latest_streamer else "存在しない配信者です。"
+
 
 class Streaming(models.Model):
     """配信テーブル"""
