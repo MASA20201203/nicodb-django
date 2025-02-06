@@ -27,5 +27,5 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
     path(settings.ADMIN_URL, admin.site.urls),
 ]
 
-if settings.DEBUG:
+if settings.DEBUG:  # pragma: no cover
     urlpatterns.extend(static(settings.STATIC_URL, document_root=settings.STATIC_ROOT))

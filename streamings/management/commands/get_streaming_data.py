@@ -48,7 +48,7 @@ class StreamingData:
 class Command(BaseCommand):
     help = "指定された配信IDを用いて配信データを取得する"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser):  # pragma: no cover
         """
         コマンドライン引数を追加する
         """
@@ -247,7 +247,9 @@ class Command(BaseCommand):
         return StreamingData(**streaming_data)
 
     @classmethod
-    def print_streamng_data(cls, extracted_streaming_data: StreamingData) -> None:
+    def print_streamng_data(
+        cls, extracted_streaming_data: StreamingData
+    ) -> None:  # pragma: no cover
         """
         抽出した配信データを表示する。
 
