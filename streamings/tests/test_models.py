@@ -33,7 +33,7 @@ def test_streaming_str() -> None:
         end_time=now() + timedelta(hours=1),
         duration_time=timedelta(hours=1),
         status="live",
-        streamer_id=streamer,
+        streamer=streamer,
     )
 
     # When: __str__() を呼び出し
