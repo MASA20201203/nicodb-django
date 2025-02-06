@@ -1,5 +1,4 @@
 import json
-from unittest.mock import patch
 
 import pytest
 import requests
@@ -7,18 +6,7 @@ from bs4 import Tag
 from django.conf import settings
 from requests_mock import Mocker
 
-from streamings.services.get_streaming_data import (
-    StreamingData,
-    build_streaming_url,
-    calculate_duration,
-    convert_unix_to_jst,
-    extract_streaming_data,
-    fetch_html,
-    find_script_tag_with_data_props,
-    get_default_headers,
-    parse_args,
-    parse_data_props_to_dict,
-)
+from streamings.management.commands.get_streaming_data import Command, StreamingData
 
 
 def test_build_streaming_url(monkeypatch) -> None:
@@ -31,7 +19,7 @@ def test_build_streaming_url(monkeypatch) -> None:
     streaming_id = "123456789"
 
     # When: build_streaming_url 関数を呼び出す
-    result = build_streaming_url(streaming_id)
+    result = Command.build_streaming_url(streaming_id)
 
     # Then: 正しい配信URL（https://live.nicovideo.jp/watch/lv123456789）が生成される
     expected_streaming_url = "https://live.nicovideo.jp/watch/lv123456789"
@@ -45,7 +33,7 @@ def test_get_default_headers() -> None:
     # Given: なし
 
     # When: get_default_headers 関数を呼び出す
-    result = get_default_headers()
+    result = Command.get_default_headers()
 
     # Then: 期待されるヘッダー情報が返される
     expected_headers = {
@@ -78,7 +66,7 @@ class TestFetchHtml:
         requests_mock.get(self.url, [{"text": given_html, "status_code": 200}])
 
         # When: fetch_html関数を呼び出す
-        result = fetch_html(self.url, self.headers)
+        result = Command.fetch_html(self.url, self.headers)
 
         # Then: 正しいHTMLデータが返される
         expected_html = "<html><body><h1>Test Page</h1></body></html>"
@@ -93,7 +81,7 @@ class TestFetchHtml:
 
         # When & Then: fetch_html関数が例外を投げることを確認
         with pytest.raises(Exception, match="HTTPリクエストエラー: 403 Client Error"):
-            fetch_html(self.url, self.headers)
+            Command.fetch_html(self.url, self.headers)
 
     def test_request_exception(self, requests_mock: Mocker) -> None:
         """
@@ -104,7 +92,7 @@ class TestFetchHtml:
 
         # When & Then: fetch_html関数が例外を投げることを確認
         with pytest.raises(Exception, match="HTTPリクエストエラー: Connection refused"):
-            fetch_html(self.url, self.headers)
+            Command.fetch_html(self.url, self.headers)
 
 
 class TestFindScriptTagWithDataProps:
@@ -126,7 +114,7 @@ class TestFindScriptTagWithDataProps:
         """
 
         # When: find_script_tag_with_data_props関数を実行
-        result = find_script_tag_with_data_props(valid_html)
+        result = Command.find_script_tag_with_data_props(valid_html)
 
         # Then: 戻り値がTagオブジェクトで、正しい属性を持つ
         assert isinstance(result, Tag)
@@ -148,7 +136,7 @@ class TestFindScriptTagWithDataProps:
         """
 
         # When: find_script_tag_with_data_props関数を実行
-        result = find_script_tag_with_data_props(multiple_script_tags_html)
+        result = Command.find_script_tag_with_data_props(multiple_script_tags_html)
 
         # Then: 取得したスクリプトタグのid属性が"embedded-data"であることを確認
         assert isinstance(result, Tag)
@@ -172,7 +160,7 @@ class TestFindScriptTagWithDataProps:
         with pytest.raises(
             Exception, match="data_props属性を含むスクリプトタグが見つかりませんでした。"
         ):
-            find_script_tag_with_data_props(invalid_html)
+            Command.find_script_tag_with_data_props(invalid_html)
 
 
 class TestParseDataPropsToDict:
@@ -188,10 +176,10 @@ class TestParseDataPropsToDict:
         html_content = """
         <script id="embedded-data" data-props='{"key": "value"}'></script>
         """
-        script_tag_with_data_props = find_script_tag_with_data_props(html_content)
+        script_tag_with_data_props = Command.find_script_tag_with_data_props(html_content)
 
         # When: parse_data_props_to_dictを実行
-        result = parse_data_props_to_dict(script_tag_with_data_props)
+        result = Command.parse_data_props_to_dict(script_tag_with_data_props)
 
         # Then: 正しいJSONデータが辞書型で返される
         assert isinstance(result, dict)
@@ -206,11 +194,11 @@ class TestParseDataPropsToDict:
         html_content = """
         <script id="embedded-data" data-props=""></script>
         """
-        script_tag_with_data_props = find_script_tag_with_data_props(html_content)
+        script_tag_with_data_props = Command.find_script_tag_with_data_props(html_content)
 
         # When & Then: `ValueError` が発生
         with pytest.raises(ValueError, match="data-props属性の値が空です。"):
-            parse_data_props_to_dict(script_tag_with_data_props)
+            Command.parse_data_props_to_dict(script_tag_with_data_props)
 
     def test_invalid_json(self) -> None:
         """
@@ -220,11 +208,11 @@ class TestParseDataPropsToDict:
         html_content = """
         <script id="embedded-data" data-props='{"key": value}'></script>
         """
-        script_tag_with_embedded_data = find_script_tag_with_data_props(html_content)
+        script_tag_with_embedded_data = Command.find_script_tag_with_data_props(html_content)
 
         # When & Then: 無効なJSONの場合はjson.JSONDecodeErrorが発生
         with pytest.raises(json.JSONDecodeError):
-            parse_data_props_to_dict(script_tag_with_embedded_data)
+            Command.parse_data_props_to_dict(script_tag_with_embedded_data)
 
 
 class TestConvertUnixToJST:
@@ -240,7 +228,7 @@ class TestConvertUnixToJST:
         unix_time = 1738130400
 
         # When: 関数を実行
-        result = convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_jst(unix_time)
 
         # Then: 期待するJSTの日時が返る
         expected_jst = "2025-01-29 15:00:00"
@@ -254,7 +242,7 @@ class TestConvertUnixToJST:
         unix_time = 0
 
         # When: 関数を実行
-        result = convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_jst(unix_time)
 
         # Then: JSTの09:00:00になる
         expected_jst = "1970-01-01 09:00:00"
@@ -268,7 +256,7 @@ class TestConvertUnixToJST:
         unix_time = -86400  # 1日前（-1 * 60 * 60 * 24）
 
         # When: 関数を実行
-        result = convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_jst(unix_time)
 
         # Then: JSTの08:00:00になる
         expected_jst = "1969-12-31 09:00:00"
@@ -283,7 +271,7 @@ class TestConvertUnixToJST:
         expected_jst = "2038-01-19 12:14:08"
 
         # When: 関数を実行
-        result = convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_jst(unix_time)
 
         # Then: 期待するJSTの日時が返る
         assert result == expected_jst
@@ -296,7 +284,7 @@ class TestConvertUnixToJST:
         unix_time = 1835395200
 
         # When: convert_unix_to_jst関数を実行
-        result = convert_unix_to_jst(unix_time)
+        result = Command.convert_unix_to_jst(unix_time)
 
         # Then: 正しい日本時間の日時が返される
         expected_time = "2028-02-29 09:00:00"
@@ -317,7 +305,7 @@ class TestCalculateDuration:
         end_time = 1738142755  # 2025-01-29 18:25:55 JST
 
         # When: 関数を実行
-        result = calculate_duration(start_time, end_time)
+        result = Command.calculate_duration(start_time, end_time)
 
         # Then: 期待する出力と一致
         expected_duration = "01:25:55"
@@ -332,7 +320,7 @@ class TestCalculateDuration:
         end_time = 1738143201  # 2025-01-29 18:33:21 JST
 
         # When: calculate_duration関数を実行
-        result = calculate_duration(start_time, end_time)
+        result = Command.calculate_duration(start_time, end_time)
 
         # Then: 正しい配信時間が返される
         expected_duration = "00:07:26"
@@ -347,7 +335,7 @@ class TestCalculateDuration:
         end_time = 1738148400  # 2025-01-29 20:00:00 JST
 
         # When: 関数を実行
-        result = calculate_duration(start_time, end_time)
+        result = Command.calculate_duration(start_time, end_time)
 
         # Then: 期待する出力と一致
         excepted_duration = "02:00:00"
@@ -362,7 +350,7 @@ class TestCalculateDuration:
         end_time = 1738148400  # 2025-01-29 20:00:00 JST
 
         # When: calculate_duration関数を実行
-        result = calculate_duration(start_time, end_time)
+        result = Command.calculate_duration(start_time, end_time)
 
         # Then: 配信時間が "00:00:00" であることを確認
         expected_duration = "00:00:00"
@@ -378,7 +366,7 @@ class TestCalculateDuration:
 
         # When & Then: `ValueError` を発生させる
         with pytest.raises(ValueError, match="終了時間は開始時間より後である必要があります。"):
-            calculate_duration(start_time, end_time)
+            Command.calculate_duration(start_time, end_time)
 
 
 class TestExtractStreamingData:
@@ -407,7 +395,7 @@ class TestExtractStreamingData:
         # Given: 正常な辞書データ（fixture で作成ずみ)
 
         # When: 関数を実行
-        result = extract_streaming_data(valid_dict_data)
+        result = Command.extract_streaming_data(valid_dict_data)
 
         # Then: 期待する StreamingData オブジェクトが生成される
         assert isinstance(result, StreamingData)
@@ -449,36 +437,4 @@ class TestExtractStreamingData:
 
         # When & Then: 例外が発生することを確認
         with pytest.raises(ValueError, match=expected_message):
-            extract_streaming_data(valid_dict_data)
-
-
-class TestParseArgs:
-    """
-    parse_args 関数のテストクラス
-    """
-
-    def test_valid_args(self) -> None:
-        """
-        正しい引数を渡した場合、Namespace に正しく格納されることを確認する。
-        """
-        # Given: コマンドライン引数に `streaming_id` を含めたリストを作成
-        test_args = ["script.py", "346883570"]
-
-        # When: `sys.argv` をモックし、`parse_args()` を実行
-        with patch("sys.argv", test_args):
-            args = parse_args()
-
-        # Then: `args.streaming_id` が "346883570" であることを確認
-        assert args.streaming_id == "346883570"
-
-    def test_missing_args(self) -> None:
-        """
-        引数を渡さなかった場合、エラーが発生することを確認する。
-        """
-        # Given: `streaming_id` を渡さず `sys.argv` をモック
-        test_args = ["script.py"]  # `streaming_id` がない
-
-        # When & Then: `parse_args()` を実行すると `SystemExit` が発生することを確認
-        with patch("sys.argv", test_args):
-            with pytest.raises(SystemExit):  # argparse はエラー時に `SystemExit` を発生させる
-                parse_args()
+            Command.extract_streaming_data(valid_dict_data)
