@@ -21,7 +21,6 @@
 
 import argparse
 import json
-import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -46,7 +45,7 @@ class StreamingData:
     streamer_name: str
 
 
-def run(streaming_id: str) -> StreamingData:
+def run():
     """
     指定された配信IDを用いて配信データを取得する。
 
@@ -56,12 +55,33 @@ def run(streaming_id: str) -> StreamingData:
     Returns:
         StreamingData: 抽出された配信データ
     """
-    url = build_streaming_url(streaming_id)
-    headers = get_default_headers()
-    html_content = fetch_html(url, headers)
-    script_tag_with_data_props = find_script_tag_with_data_props(html_content)
-    data_props_dict = parse_data_props_to_dict(script_tag_with_data_props)
-    return extract_streaming_data(data_props_dict)
+    try:
+        args = parse_args()
+        url = build_streaming_url(args.streaming_id)
+        headers = get_default_headers()
+        html_content = fetch_html(url, headers)
+        script_tag_with_data_props = find_script_tag_with_data_props(html_content)
+        data_props_dict = parse_data_props_to_dict(script_tag_with_data_props)
+        streaming_data = extract_streaming_data(data_props_dict)
+        print_streamng_data(streaming_data)
+    except Exception as e:
+        print(f"予期しないエラー: {e}")
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    コマンドライン引数を解析する。
+
+    Returns:
+        argparse.Namespace: コマンドライン引数の結果。
+    """
+    parser = argparse.ArgumentParser(description="配信データを取得するスクリプト")
+    parser.add_argument(
+        "streaming_id",
+        type=str,
+        help="配信ID（例: 346883570）",
+    )
+    return parser.parse_args()
 
 
 def build_streaming_url(streaming_id: str) -> str:
@@ -238,28 +258,16 @@ def extract_streaming_data(json_data: dict) -> StreamingData:
     return StreamingData(**streaming_data)
 
 
-def parse_args() -> argparse.Namespace:
+def print_streamng_data(streaming_data: StreamingData) -> None:
     """
-    コマンドライン引数を解析する。
+    配信データを表示する。
 
-    Returns:
-        argparse.Namespace: コマンドライン引数の結果。
+    Args:
+        streaming_data (StreamingData): 配信データ。
     """
-    parser = argparse.ArgumentParser(description="配信データを取得するスクリプト")
-    parser.add_argument(
-        "streaming_id",
-        type=str,
-        help="配信ID（例: 346883570）",
-    )
-    return parser.parse_args()
+    for key, value in streaming_data.__dict__.items():
+        print(f"{key}: {value}")
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    try:
-        streaming_data = run(args.streaming_id)
-        for key, value in streaming_data.__dict__.items():
-            print(f"{key}: {value}")
-    except Exception as e:
-        print(f"予期しないエラー: {e}")
-        sys.exit(99)
+    run()
