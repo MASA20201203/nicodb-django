@@ -22,10 +22,12 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import requests
 from bs4 import BeautifulSoup, Tag
 from django.conf import settings
+from django.core.management import CommandParser
 from django.core.management.base import BaseCommand
 
 
@@ -48,18 +50,18 @@ class StreamingData:
 class Command(BaseCommand):
     help = "指定された配信IDを用いて配信データを取得する"
 
-    def add_arguments(self, parser):  # pragma: no cover
+    def add_arguments(self, parser: CommandParser) -> None:  # pragma: no cover
         """
         コマンドライン引数を追加する
         """
         parser.add_argument("streaming_id", type=str, help="配信ID（例: 346883570）")
 
-    def handle(self, *args, **options):
+    def handle(self, **options: dict[str, Any]) -> None:
         """
         コマンドのメイン処理
         """
         try:
-            streaming_id = options["streaming_id"]
+            streaming_id = str(options["streaming_id"])
             url = self.build_streaming_url(streaming_id)
             headers = self.get_default_headers()
             html_content = self.fetch_html(url, headers)
