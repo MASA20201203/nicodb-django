@@ -150,7 +150,14 @@ def parse_data_props_to_dict(script_tag_with_embedded_data: Tag) -> dict:
     data_props = str(script_tag_with_embedded_data["data-props"])
     if data_props.strip() == "":
         raise ValueError("data-props属性の値が空です。")
-    data_props_dict = json.loads(data_props)
+
+    try:
+        data_props_dict = json.loads(data_props)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(
+            f"data-props属性のJSONデコードに失敗しました: {e.msg}", e.doc, e.pos
+        ) from e
+
     return data_props_dict
 
 
@@ -253,15 +260,6 @@ if __name__ == "__main__":
         streaming_data = run(args.streaming_id)
         for key, value in streaming_data.__dict__.items():
             print(f"{key}: {value}")
-    except requests.RequestException as e:
-        print(f"HTTPリクエストエラー: {e}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"JSONデコードエラー: {e}")
-        sys.exit(2)
-    except KeyError as e:
-        print(f"データ構造エラー: 必要なキーが存在しません ({e})")
-        sys.exit(3)
     except Exception as e:
         print(f"予期しないエラー: {e}")
         sys.exit(99)
