@@ -182,8 +182,8 @@ memo.md
 retrospective.md
 
 # 一時ファイル
-streamings/services/*.json
-streamings/services/*.html
+streamings/management/commands/*.json
+streamings/management/commands/*.html
 
 # 静的ファイル
 staticfiles/
