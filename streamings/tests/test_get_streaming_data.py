@@ -10,7 +10,7 @@ from django.utils import timezone
 from requests_mock import Mocker
 
 from streamings.management.commands.get_streaming_data import Command, StreamingData
-from streamings.models import Streamer
+from streamings.models import Streamer, Streaming
 
 
 def test_build_streaming_url(monkeypatch) -> None:
@@ -347,15 +347,15 @@ class TestExtractStreamingData:
         result = Command.extract_streaming_data(valid_dict_data)
 
         # Then: 期待する StreamingData オブジェクトが生成される
-        expected_time_begin = datetime(2025, 1, 27, 0, 0, 0, tzinfo=dt_timezone.utc)
-        expected_time_end = datetime(2025, 1, 27, 4, 0, 0, tzinfo=dt_timezone.utc)
+        expected_start_time = datetime(2025, 1, 27, 0, 0, 0, tzinfo=dt_timezone.utc)
+        expected_end_time = datetime(2025, 1, 27, 4, 0, 0, tzinfo=dt_timezone.utc)
 
         assert isinstance(result, StreamingData)
         assert result.id == "346883570"  # "lv" が削除されている
         assert result.title == "ドライブ配信"
-        assert result.time_begin == expected_time_begin  # 2025-01-27 00:00:00 UTC
-        assert result.time_end == expected_time_end  # 2025-01-27 04:00:00 UTC
-        assert result.time_duration == "04:00:00"
+        assert result.start_time == expected_start_time  # 2025-01-27 00:00:00 UTC
+        assert result.end_time == expected_end_time  # 2025-01-27 04:00:00 UTC
+        assert result.duration_time == "04:00:00"
         assert result.status == "ENDED"
         assert result.streamer_id == "52053485"
         assert result.streamer_name == "3時サブ垢"
@@ -442,3 +442,81 @@ class TestSaveOrGetStreamer:
         assert new_streamer.name == "配信者B"  # 新しい名前が適用されている
         assert new_streamer.created_at > old_streamer.created_at  # 新レコードの作成日の方が新しい
         assert Streamer.objects.count() == 2  # 2 レコードが存在することを確認
+
+
+@pytest.mark.django_db
+class TestSaveOrUpdateStreaming:
+    """
+    Command クラスの save_or_update_streaming メソッドのテストクラス。
+    """
+
+    def test_save_or_update_streaming_create(self):
+        """
+        新規の配信データを作成するテスト。
+        """
+        # Given: 配信者と配信データを作成
+        streamer = Streamer.objects.create(streamer_id=12345, name="Test Streamer")
+        streaming_data = StreamingData(
+            id="123456789",
+            title="Test Streaming",
+            start_time=datetime(2025, 2, 7, 14, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=1),
+            status="ENDED",
+            streamer_id=streamer.streamer_id,
+            streamer_name=streamer.name,
+        )
+
+        # When: メソッドを呼び出して配信データを保存
+        Command.save_or_update_streaming(streaming_data, streamer)
+
+        # Then: 配信データが作成されたことを確認
+        streaming = Streaming.objects.get(streaming_id=streaming_data.id)
+        assert streaming.title == streaming_data.title
+        assert streaming.start_time == streaming_data.start_time
+        assert streaming.end_time == streaming_data.end_time
+        assert streaming.duration_time == streaming_data.duration_time
+        assert streaming.status == streaming_data.status
+        assert streaming.streamer == streamer
+
+    def test_update_existing_streaming(self):
+        """
+        既存の配信データがある場合、更新されることを確認
+        """
+        # Given: 配信者 (Streamer) 、既存の配信データ (Streaming) を作成
+        streamer = Streamer.objects.create(streamer_id=12345, name="Test Streamer")
+
+        # 既存の Streaming レコードを作成
+        Streaming.objects.create(
+            streaming_id=67890,
+            title="Old Streaming",
+            start_time=datetime(2025, 2, 7, 14, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=1),
+            status="ON_AIR",
+            streamer=streamer,
+        )
+
+        # 更新用の配信データ (StreamingData)
+        updated_streaming_data = StreamingData(
+            id=67890,  # 同じ streaming_id なので更新されるはず
+            title="Updated Streaming",
+            start_time=datetime(2025, 2, 7, 14, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 7, 16, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=2),
+            status="ENDED",
+            streamer_id=streamer.streamer_id,
+            streamer_name=streamer.name,
+        )
+
+        # When: `save_or_update_streaming` を実行
+        Command.save_or_update_streaming(updated_streaming_data, streamer)
+
+        # Then: 既存の Streaming レコードが更新されていることを確認
+        streaming = Streaming.objects.get(streaming_id=67890)
+        assert streaming.title == updated_streaming_data.title
+        assert streaming.start_time == updated_streaming_data.start_time
+        assert streaming.end_time == updated_streaming_data.end_time
+        assert streaming.duration_time == updated_streaming_data.duration_time
+        assert streaming.status == updated_streaming_data.status
+        assert streaming.streamer == streamer  # Streamer は変更なし

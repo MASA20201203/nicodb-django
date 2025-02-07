@@ -41,9 +41,9 @@ class StreamingData:
 
     id: str
     title: str
-    time_begin: datetime
-    time_end: datetime
-    time_duration: str
+    start_time: datetime
+    end_time: datetime
+    duration_time: str
     status: str
     streamer_id: str
     streamer_name: str
@@ -235,8 +235,8 @@ class Command(BaseCommand):
             streaming_data = {
                 "id": program["nicoliveProgramId"].removeprefix("lv"),
                 "title": program["title"],
-                "time_begin": cls.convert_unix_to_datetime(program["beginTime"]),
-                "time_end": cls.convert_unix_to_datetime(program["endTime"]),
+                "start_time": cls.convert_unix_to_datetime(program["beginTime"]),
+                "end_time": cls.convert_unix_to_datetime(program["endTime"]),
                 "status": program["status"],
                 "streamer_id": supplier["programProviderId"],
                 "streamer_name": supplier["name"],
@@ -245,7 +245,7 @@ class Command(BaseCommand):
             raise ValueError(f"必須データが見つかりませんでした: {e.args[0]}") from e
 
         # 配信時間を算出して streaming_data に追加
-        streaming_data["time_duration"] = cls.calculate_duration(
+        streaming_data["duration_time"] = cls.calculate_duration(
             program["beginTime"], program["endTime"]
         )
 
@@ -297,9 +297,9 @@ class Command(BaseCommand):
             streaming_id=streaming_data.id,
             defaults={
                 "title": streaming_data.title,
-                "start_time": streaming_data.time_begin,
-                "end_time": streaming_data.time_end,
-                "duration_time": streaming_data.time_duration,
+                "start_time": streaming_data.start_time,
+                "end_time": streaming_data.end_time,
+                "duration_time": streaming_data.duration_time,
                 "status": streaming_data.status,
                 "streamer": streamer,  # Streamer のインスタンスを紐付け
             },
