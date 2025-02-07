@@ -315,7 +315,6 @@ class TestCalculateDuration:
             Command.calculate_duration(start_time, end_time)
 
 
-@pytest.mark.skip(reason="後でテストするため、一旦スキップ")
 class TestExtractStreamingData:
     """
     extract_streaming_data 関数のテストクラス。
@@ -329,8 +328,8 @@ class TestExtractStreamingData:
                 "nicoliveProgramId": "lv346883570",
                 "title": "ドライブ配信",
                 "supplier": {"name": "3時サブ垢", "programProviderId": "52053485"},
-                "beginTime": 1737936000,
-                "endTime": 1737950400,
+                "beginTime": 1737936000,  # 2025-01-27 00:00:00 UTC
+                "endTime": 1737950400,  # 2025-01-27 04:00:00 UTC
                 "status": "ENDED",
             }
         }
@@ -345,11 +344,14 @@ class TestExtractStreamingData:
         result = Command.extract_streaming_data(valid_dict_data)
 
         # Then: 期待する StreamingData オブジェクトが生成される
+        expected_time_begin = datetime(2025, 1, 27, 0, 0, 0, tzinfo=timezone.utc)
+        expected_time_end = datetime(2025, 1, 27, 4, 0, 0, tzinfo=timezone.utc)
+
         assert isinstance(result, StreamingData)
         assert result.id == "346883570"  # "lv" が削除されている
         assert result.title == "ドライブ配信"
-        assert result.time_begin == "2025-01-27 09:00:00"
-        assert result.time_end == "2025-01-27 13:00:00"
+        assert result.time_begin == expected_time_begin  # 2025-01-27 00:00:00 UTC
+        assert result.time_end == expected_time_end  # 2025-01-27 04:00:00 UTC
         assert result.time_duration == "04:00:00"
         assert result.status == "ENDED"
         assert result.streamer_id == "52053485"
