@@ -103,6 +103,9 @@ DATABASES = {
         "PASSWORD": os.getenv("DATABASE_PASSWORD"),
         "HOST": os.getenv("DATABASE_HOST") if IS_RUNNING_IN_DOCKER else "localhost",
         "PORT": os.getenv("DATABASE_PORT"),
+        "TEST": {
+            "NAME": "test_db",
+        },
     }
 }
 
