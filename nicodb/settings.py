@@ -98,9 +98,9 @@ IS_RUNNING_IN_DOCKER = os.path.exists("/.dockerenv") or socket.gethostname() == 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DATABASE_NAME"),
-        "USER": os.getenv("DATABASE_USER"),
-        "PASSWORD": os.getenv("DATABASE_PASSWORD"),
+        "NAME": os.getenv("DATABASE_NAME", "test_db"),
+        "USER": os.getenv("DATABASE_USER", "test_user"),
+        "PASSWORD": os.getenv("DATABASE_PASSWORD", "test_password"),
         "HOST": os.getenv("DATABASE_HOST") if IS_RUNNING_IN_DOCKER else "localhost",
         "PORT": os.getenv("DATABASE_PORT"),
         "TEST": {
