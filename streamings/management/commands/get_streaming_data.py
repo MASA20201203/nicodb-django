@@ -77,7 +77,6 @@ class Command(BaseCommand):
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
-            self.print_extracted_streaming_data(extracted_streaming_data)
             self.save_streaming_data(extracted_streaming_data)
         except Exception as e:
             raise Exception(f"予期せぬエラー: {e}") from e
@@ -304,19 +303,6 @@ class Command(BaseCommand):
                 "streamer": streamer,  # Streamer のインスタンスを紐付け
             },
         )
-
-    @classmethod
-    def print_extracted_streaming_data(
-        cls, streaming_data: StreamingData
-    ) -> None:  # pragma: no cover TODO: デバッグ用、後で削除
-        """
-        抽出した配信データを表示する。
-
-        Args:
-            streaming_data (StreamingData): 表示対象の配信データ
-        """
-        for key, value in streaming_data.__dict__.items():
-            print(f"{key}: {value}")
 
     @classmethod
     def save_streaming_data(cls, streaming_data: StreamingData) -> None:
