@@ -1,19 +1,19 @@
 import json
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
+from unittest.mock import patch
 
 import pytest
 import requests
 from bs4 import Tag
 from django.conf import settings
 from django.utils import timezone
-from requests_mock import Mocker
 
 from streamings.management.commands.get_streaming_data import Command, StreamingData
 from streamings.models import Streamer, Streaming
 
 
-def test_build_streaming_url(monkeypatch) -> None:
+def test_build_streaming_url(monkeypatch):
     """
     build_streaming_url関数が配信IDから正しいURLを生成するかをテスト
     """
@@ -30,7 +30,7 @@ def test_build_streaming_url(monkeypatch) -> None:
     assert result == expected_streaming_url
 
 
-def test_get_default_headers() -> None:
+def test_get_default_headers():
     """
     get_default_headers関数が正しいヘッダーを返すかをテスト
     """
@@ -52,7 +52,7 @@ class TestFetchHtml:
     """
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self):
         """
         共通データのセットアップ。
         """
@@ -61,7 +61,7 @@ class TestFetchHtml:
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
         }
 
-    def test_success(self, requests_mock: Mocker) -> None:
+    def test_success(self, requests_mock):
         """
         fetch_html関数が正常にHTMLデータを取得する場合のテスト
         """
@@ -76,7 +76,7 @@ class TestFetchHtml:
         expected_html = "<html><body><h1>Test Page</h1></body></html>"
         assert result == expected_html
 
-    def test_http_error(self, requests_mock: Mocker) -> None:
+    def test_http_error(self, requests_mock):
         """
         fetch_html関数がHTTPエラーを処理する場合のテスト
         """
@@ -87,7 +87,7 @@ class TestFetchHtml:
         with pytest.raises(Exception, match="HTTPリクエストエラー: 403 Client Error"):
             Command.fetch_html(self.url, self.headers)
 
-    def test_request_exception(self, requests_mock: Mocker) -> None:
+    def test_request_exception(self, requests_mock):
         """
         fetch_html関数がリクエスト例外を処理する場合のテスト
         """
@@ -104,7 +104,7 @@ class TestFindScriptTagWithDataProps:
     find_script_tag_with_data_props 関数のテストクラス。
     """
 
-    def test_success(self) -> None:
+    def test_success(self):
         """
         正しいスクリプトタグがHTML内に存在する場合のテスト
         """
@@ -124,7 +124,7 @@ class TestFindScriptTagWithDataProps:
         assert isinstance(result, Tag)
         assert "data-props" in result.attrs
 
-    def test_multiple_script_tags(self) -> None:
+    def test_multiple_script_tags(self):
         """
         複数のスクリプトタグがHTML内に存在する場合のテスト
         """
@@ -147,7 +147,7 @@ class TestFindScriptTagWithDataProps:
         assert result["id"] == "embedded-data"
         assert "data-props" in result.attrs
 
-    def test_script_tag_not_found(self) -> None:
+    def test_script_tag_not_found(self):
         """
         スクリプトタグがHTML内に存在しない場合のテスト
         """
@@ -172,7 +172,7 @@ class TestParseDataPropsToDict:
     parse_data_props_to_dict 関数のテストクラス。
     """
 
-    def test_success(self) -> None:
+    def test_success(self):
         """
         スクリプトタグのdata-props属性が正常なJSON形式で取得できる場合のテスト。
         """
@@ -190,7 +190,7 @@ class TestParseDataPropsToDict:
         expected_data_props_dict = {"key": "value"}
         assert result == expected_data_props_dict
 
-    def test_empty_data_props(self) -> None:
+    def test_empty_data_props(self):
         """
         `data-props` が空文字の場合、ValueError が発生することを確認。
         """
@@ -204,7 +204,7 @@ class TestParseDataPropsToDict:
         with pytest.raises(ValueError, match="data-props属性の値が空です。"):
             Command.parse_data_props_to_dict(script_tag_with_data_props)
 
-    def test_invalid_json(self) -> None:
+    def test_invalid_json(self):
         """
         スクリプトタグのdata-props属性が無効なJSON形式の場合のテスト。
         """
@@ -224,7 +224,7 @@ class TestConvertUnixToDatetime:
     convert_unix_to_datetime 関数のテストクラス。
     """
 
-    def test_convert_unix_to_datetime(self) -> None:
+    def test_convert_unix_to_datetime(self):
         """
         Unixタイムスタンプを UTC の datetime に変換するテスト。
         """
@@ -245,7 +245,7 @@ class TestCalculateDuration:
     calculate_duration 関数のテストクラス。
     """
 
-    def test_standard_duration(self) -> None:
+    def test_standard_duration(self):
         """
         時間、分、秒を含む場合のテスト。
         """
@@ -260,7 +260,7 @@ class TestCalculateDuration:
         expected_duration = "01:25:55"
         assert result == expected_duration
 
-    def test_short_duration(self) -> None:
+    def test_short_duration(self):
         """
         分、秒のみを含む短い場合のテスト。
         """
@@ -275,7 +275,7 @@ class TestCalculateDuration:
         expected_duration = "00:07:26"
         assert result == expected_duration
 
-    def test_exact_hour_duration(self) -> None:
+    def test_exact_hour_duration(self):
         """
         ちょうど2時間の場合のテスト。
         """
@@ -290,7 +290,7 @@ class TestCalculateDuration:
         excepted_duration = "02:00:00"
         assert result == excepted_duration
 
-    def test_no_duration(self) -> None:
+    def test_no_duration(self):
         """
         配信開始時間と終了時間が同じ場合のテスト。
         """
@@ -305,7 +305,7 @@ class TestCalculateDuration:
         expected_duration = "00:00:00"
         assert result == expected_duration
 
-    def test_negative_duration(self) -> None:
+    def test_negative_duration(self):
         """
         `end_time` が `start_time` よりも前の場合、ValueError が発生することを確認。
         """
@@ -337,7 +337,7 @@ class TestExtractStreamingData:
             }
         }
 
-    def test_valid_dict_data(self, valid_dict_data) -> None:
+    def test_valid_dict_data(self, valid_dict_data):
         """
         正常な辞書データを渡した場合に StreamingData オブジェクトが正しく生成されることを確認。
         """
@@ -372,7 +372,7 @@ class TestExtractStreamingData:
             ("name", "必須データが見つかりませんでした: name"),
         ],
     )
-    def test_missing_required_fields(self, valid_dict_data, missing_field) -> None:
+    def test_missing_required_fields(self, valid_dict_data, missing_field):
         """
         必須フィールドが欠落している場合に例外が発生することを確認。
         """
@@ -520,3 +520,108 @@ class TestSaveOrUpdateStreaming:
         assert streaming.duration_time == updated_streaming_data.duration_time
         assert streaming.status == updated_streaming_data.status
         assert streaming.streamer == streamer  # Streamer は変更なし
+
+
+@pytest.mark.django_db
+class TestSaveStreamingData:
+    """
+    Command クラスの save_streaming_data メソッドのテストクラス。
+    """
+
+    def test_save_new_streaming_data(self):
+        """
+        配信データが存在しない場合、新規作成されることを確認
+        """
+        # Given: 配信データを作成
+        streaming_data = StreamingData(
+            id="123",
+            title="Test Streaming",
+            start_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 7, 16, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=1),
+            status="ENDED",
+            streamer_id="456",
+            streamer_name="Test Streamer",
+        )
+
+        # When: メソッドを呼び出して配信データを保存
+        Command.save_streaming_data(streaming_data)
+
+        # Then: 配信者と配信データが作成されたことを確認
+        streamer = Streamer.objects.get(streamer_id=int(streaming_data.streamer_id))
+        assert streamer.name == streaming_data.streamer_name
+
+        streaming = Streaming.objects.get(streaming_id=streaming_data.id)
+        assert streaming.title == streaming_data.title
+        assert streaming.start_time == streaming_data.start_time
+        assert streaming.end_time == streaming_data.end_time
+        assert streaming.duration_time == streaming_data.duration_time
+        assert streaming.status == streaming_data.status
+        assert streaming.streamer == streamer
+
+    def test_update_existing_streaming_data(self):
+        """
+        既存の配信データがある場合、更新されることを確認
+        """
+        # Given: 既存の配信者 (Streamer) を作成
+        streamer = Streamer.objects.create(streamer_id=12345, name="Test Streamer")
+
+        # Given: 既存の配信データ (Streaming) を作成
+        Streaming.objects.create(
+            streaming_id=67890,
+            title="Old Streaming",
+            start_time=datetime(2025, 2, 10, 12, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 10, 13, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=1),
+            status="ON_AIR",
+            streamer=streamer,
+        )
+
+        # Given: 更新用の配信データ
+        updated_streaming_data = StreamingData(
+            id=67890,
+            title="Updated Streaming",
+            start_time=datetime(2025, 2, 10, 12, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 10, 14, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=2),
+            status="ENDED",
+            streamer_id=12345,
+            streamer_name="Test Streamer",
+        )
+
+        # When: `save_streaming_data` を実行
+        Command.save_streaming_data(updated_streaming_data)
+
+        # Then: Streaming のデータが更新されていることを確認
+        streaming = Streaming.objects.get(streaming_id=updated_streaming_data.id)
+        assert streaming.title == updated_streaming_data.title
+        assert streaming.start_time == updated_streaming_data.start_time
+        assert streaming.end_time == updated_streaming_data.end_time
+        assert streaming.duration_time == updated_streaming_data.duration_time
+        assert streaming.status == updated_streaming_data.status
+        assert streaming.streamer == streamer  # Streamer は変更されていない
+
+    @patch.object(Command, "save_or_get_streamer")
+    @patch.object(Command, "save_or_update_streaming")
+    def test_exception_handling(self, mock_save_or_update_streaming, mock_save_or_get_streamer):
+        """
+        例外が発生した場合にエラーメッセージが出力されることを確認
+        """
+        # Given: モックをセットアップして例外を発生させる
+        mock_save_or_get_streamer.side_effect = Exception("DB error")
+
+        # Given: 保存対象の配信データ
+        streaming_data = StreamingData(
+            id=67890,
+            title="Test Streaming",
+            start_time=datetime(2025, 2, 10, 12, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 10, 14, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=2),
+            status="ENDED",
+            streamer_id=12345,
+            streamer_name="Test Streamer",
+        )
+
+        # When & Then: `print` の出力をキャプチャしてエラーメッセージを確認
+        with pytest.raises(Exception, match="DB error"):
+            Command.save_streaming_data(streaming_data)

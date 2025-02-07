@@ -80,7 +80,7 @@ class Command(BaseCommand):
             self.print_extracted_streaming_data(extracted_streaming_data)
             self.save_streaming_data(extracted_streaming_data)
         except Exception as e:
-            print(f"予期しないエラー: {e}")
+            raise Exception(f"予期せぬエラー: {e}") from e
 
     @classmethod
     def build_streaming_url(cls, streaming_id: str) -> str:
@@ -340,4 +340,4 @@ class Command(BaseCommand):
             cls.save_or_update_streaming(streaming_data, streamer)
 
         except Exception as e:
-            print(f"配信データの保存に失敗しました: {e}")
+            raise Exception(f"データベース保存エラー: {e}") from e
