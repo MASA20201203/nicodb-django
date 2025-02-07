@@ -683,7 +683,8 @@ class TestHandleCommand:
         )
 
         # When: handle メソッドを呼び出す
-        Command.handle(**options)
+        command = Command()
+        command.handle(**options)
 
         # Then: 各メソッドが正しく呼び出されることを確認
         mock_build_streaming_url.assert_called_once_with("123456789")
@@ -722,4 +723,5 @@ class TestHandleCommand:
 
         # When & Then: handle メソッドが例外を発生させることを確認
         with pytest.raises(Exception, match="予期せぬエラー: ネットワークエラー"):
-            Command.handle(**options)
+            command = Command()
+            command.handle(**options)
