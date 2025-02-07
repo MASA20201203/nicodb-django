@@ -270,7 +270,7 @@ class Command(BaseCommand):
             Streamer.objects.filter(streamer_id=streamer_id).order_by("-created_at").first()
         )
 
-        # 名前が変更されていた場合、新規作成
+        # 配信者が存在しない または、名前が変更されていた場合、新規作成
         if not latest_streamer or latest_streamer.name != streamer_name:
             streamer = Streamer.objects.create(
                 streamer_id=streamer_id,

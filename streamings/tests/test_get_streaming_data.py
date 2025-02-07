@@ -1,13 +1,16 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 
 import pytest
 import requests
 from bs4 import Tag
 from django.conf import settings
+from django.utils import timezone
 from requests_mock import Mocker
 
 from streamings.management.commands.get_streaming_data import Command, StreamingData
+from streamings.models import Streamer
 
 
 def test_build_streaming_url(monkeypatch) -> None:
@@ -232,7 +235,7 @@ class TestConvertUnixToDatetime:
         result_dt = Command.convert_unix_to_datetime(unix_time)
 
         # Then: 結果が期待される結果と一致することを確認
-        expected_datetime = datetime(2025, 2, 7, 11, 0, 0, tzinfo=timezone.utc)
+        expected_datetime = datetime(2025, 2, 7, 11, 0, 0, tzinfo=dt_timezone.utc)
 
         assert result_dt == expected_datetime
 
@@ -344,8 +347,8 @@ class TestExtractStreamingData:
         result = Command.extract_streaming_data(valid_dict_data)
 
         # Then: 期待する StreamingData オブジェクトが生成される
-        expected_time_begin = datetime(2025, 1, 27, 0, 0, 0, tzinfo=timezone.utc)
-        expected_time_end = datetime(2025, 1, 27, 4, 0, 0, tzinfo=timezone.utc)
+        expected_time_begin = datetime(2025, 1, 27, 0, 0, 0, tzinfo=dt_timezone.utc)
+        expected_time_end = datetime(2025, 1, 27, 4, 0, 0, tzinfo=dt_timezone.utc)
 
         assert isinstance(result, StreamingData)
         assert result.id == "346883570"  # "lv" が削除されている
@@ -387,3 +390,55 @@ class TestExtractStreamingData:
         # When & Then: 例外が発生することを確認
         with pytest.raises(ValueError, match=expected_message):
             Command.extract_streaming_data(valid_dict_data)
+
+
+@pytest.mark.django_db
+class TestSaveOrGetStreamer:
+    """Streamer.save_or_get_streamer 関数のテストクラス"""
+
+    def test_create_new_streamer(self):
+        """
+        配信者が存在しない場合、新規作成されることを確認。
+        """
+        # `save_or_get_streamer()` を実行（新規作成）
+        streamer = Command.save_or_get_streamer(12345, "配信者A")
+
+        # 作成された配信者を検証
+        assert streamer.streamer_id == 12345
+        assert streamer.name == "配信者A"
+        assert Streamer.objects.count() == 1  # DB に 1 レコードのみ存在することを確認
+
+    def test_get_existing_streamer_same_name(self):
+        """
+        既存の配信者の `streamer_id` があり、名前が同じ場合、既存のレコードを取得する。
+        """
+        # 事前に配信者を作成
+        existing_streamer = Streamer.objects.create(streamer_id=12345, name="配信者A")
+
+        # `save_or_get_streamer()` を実行
+        streamer = Command.save_or_get_streamer(12345, "配信者A")
+
+        # 既存のレコードが取得されることを検証
+        assert streamer.id == existing_streamer.id
+        assert streamer.streamer_id == existing_streamer.streamer_id
+        assert streamer.name == existing_streamer.name
+        assert Streamer.objects.count() == 1  # 新規作成されていないことを確認
+
+    def test_create_new_streamer_when_name_changes(self):
+        """
+        `streamer_id` が存在するが、`streamer_name` が異なる場合、新規レコードが作成されるテスト。
+        """
+        # 既存の配信者を作成
+        old_streamer = Streamer.objects.create(
+            streamer_id=12345, name="配信者A", created_at=timezone.now() - timedelta(days=1)
+        )
+
+        # `save_or_get_streamer()` を実行（名前変更）
+        new_streamer = Command.save_or_get_streamer(12345, "配信者B")
+
+        # 新規レコードが作成されたことを検証
+        assert new_streamer.id != old_streamer.id  # ID が異なる（新規作成）
+        assert new_streamer.streamer_id == old_streamer.streamer_id  # 同じ `streamer_id`
+        assert new_streamer.name == "配信者B"  # 新しい名前が適用されている
+        assert new_streamer.created_at > old_streamer.created_at  # 新レコードの作成日の方が新しい
+        assert Streamer.objects.count() == 2  # 2 レコードが存在することを確認
