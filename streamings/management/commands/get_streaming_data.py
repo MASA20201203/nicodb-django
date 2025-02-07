@@ -21,8 +21,7 @@
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timezone as dt_timezone
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -30,7 +29,6 @@ from bs4 import BeautifulSoup, Tag
 from django.conf import settings
 from django.core.management import CommandParser
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 
 from streamings.models import Streamer, Streaming
 
@@ -79,6 +77,7 @@ class Command(BaseCommand):
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
+            self.print_extracted_streaming_data(extracted_streaming_data)
             self.save_streaming_data(extracted_streaming_data)
         except Exception as e:
             print(f"予期しないエラー: {e}")
@@ -181,23 +180,18 @@ class Command(BaseCommand):
         return data_props_dict
 
     @staticmethod
-    def convert_unix_to_aware_datetime(unix_time: int) -> datetime:
+    def convert_unix_to_datetime(unix_time: int) -> datetime:
         """
-        Unixタイムスタンプを Django のタイムゾーン設定に基づいた `aware datetime` に変換する。
+        Unixタイムスタンプを UTC の datetime に変換する。
 
         Args:
             unix_time (int): Unixタイムスタンプ。
 
         Returns:
-            datetime: タイムゾーン付きの `aware datetime`（Django の `TIME_ZONE` に基づく）
+            datetime: タイムゾーン付きの `aware datetime`（UTC）。
         """
-        # Unixタイムスタンプを UTC の datetime に変換
-        dt_utc = datetime.fromtimestamp(unix_time, dt_timezone.utc)
-
-        # Django の `TIME_ZONE` に変換
-        dt_local = timezone.localtime(dt_utc)
-
-        return dt_local  # Django の `TIME_ZONE` に基づいた aware datetime を返す
+        # Unixタイムスタンプを UTC の datetime に変換して返す
+        return datetime.fromtimestamp(unix_time, timezone.utc)
 
     @staticmethod
     def calculate_duration(start_time: int, end_time: int) -> str:
@@ -241,8 +235,8 @@ class Command(BaseCommand):
             streaming_data = {
                 "id": program["nicoliveProgramId"].removeprefix("lv"),
                 "title": program["title"],
-                "time_begin": cls.convert_unix_to_aware_datetime(program["beginTime"]),
-                "time_end": cls.convert_unix_to_aware_datetime(program["endTime"]),
+                "time_begin": cls.convert_unix_to_datetime(program["beginTime"]),
+                "time_end": cls.convert_unix_to_datetime(program["endTime"]),
                 "status": program["status"],
                 "streamer_id": supplier["programProviderId"],
                 "streamer_name": supplier["name"],
@@ -310,6 +304,19 @@ class Command(BaseCommand):
                 "streamer": streamer,  # Streamer のインスタンスを紐付け
             },
         )
+
+    @classmethod
+    def print_extracted_streaming_data(
+        cls, streaming_data: StreamingData
+    ) -> None:  # pragma: no cover TODO: デバッグ用、後で削除
+        """
+        抽出した配信データを表示する。
+
+        Args:
+            streaming_data (StreamingData): 表示対象の配信データ
+        """
+        for key, value in streaming_data.__dict__.items():
+            print(f"{key}: {value}")
 
     @classmethod
     def save_streaming_data(cls, streaming_data: StreamingData) -> None:
