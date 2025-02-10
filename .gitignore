@@ -187,3 +187,6 @@ streamings/management/commands/*.html
 
 # 静的ファイル
 staticfiles/
+
+# Finder 自動生成ファイル
+.DS_Store
