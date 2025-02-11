@@ -87,14 +87,15 @@ jobs:
 
       - name: 環境変数を設定
         run: |
+          echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> $GITHUB_ENV
+          echo "DEBUG=${{ secrets.DJANGO_DEBUG }}" >> $GITHUB_ENV
+          echo "STREAMING_BASE_URL"=${{ secrets.STREAMING_BASE_URL }} >> $GITHUB_ENV
           echo "DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db" >> $GITHUB_ENV
           echo "POSTGRES_DB=test_db" >> $GITHUB_ENV
           echo "POSTGRES_USER=test_user" >> $GITHUB_ENV
           echo "POSTGRES_PASSWORD=test_password" >> $GITHUB_ENV
           echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
           echo "POSTGRES_PORT=5432" >> $GITHUB_ENV
-          echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> $GITHUB_ENV
-          echo "DEBUG=${{ secrets.DJANGO_DEBUG }}" >> $GITHUB_ENV
 
       - name: PostgreSQL の起動を待つ
         run: |
