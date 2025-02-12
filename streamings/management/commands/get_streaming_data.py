@@ -87,7 +87,7 @@ class Command(BaseCommand):
             self.save_streaming_data(extracted_streaming_data)
             logger.info(f"配信データを正常に保存しました: 配信ID={streaming_id}")
         except Exception as e:
-            logger.error(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+            logger.error(f"予期せぬエラー: {e}", exc_info=True)
             raise Exception(f"予期せぬエラー: {e}") from e
 
     @classmethod
@@ -138,6 +138,7 @@ class Command(BaseCommand):
             response.raise_for_status()
             return response.text
         except requests.RequestException as e:
+            logging.error(f"HTTPリクエストエラー: {e}", exc_info=True)
             raise Exception(f"HTTPリクエストエラー: {e}") from e
 
     @classmethod
@@ -157,6 +158,7 @@ class Command(BaseCommand):
         soup = BeautifulSoup(html_content, "html.parser")
         script_tag_with_data_props = soup.find("script", attrs={"data-props": True})
         if not isinstance(script_tag_with_data_props, Tag):
+            logging.error("data_props属性を含むスクリプトタグが見つかりませんでした。")
             raise Exception("data_props属性を含むスクリプトタグが見つかりませんでした。")
         return script_tag_with_data_props
 
@@ -176,11 +178,13 @@ class Command(BaseCommand):
         """
         data_props = str(script_tag_with_embedded_data["data-props"])
         if data_props.strip() == "":
+            logging.error("data-props属性の値が空です。")
             raise ValueError("data-props属性の値が空です。")
 
         try:
             data_props_dict = json.loads(data_props)
         except json.JSONDecodeError as e:
+            logging.error(f"data-props属性のJSONデコードに失敗しました: {e.msg}", exc_info=True)
             raise json.JSONDecodeError(
                 f"data-props属性のJSONデコードに失敗しました: {e.msg}", e.doc, e.pos
             ) from e
@@ -218,6 +222,7 @@ class Command(BaseCommand):
         try:
             return StreamingStatus[status].value
         except KeyError as e:
+            logging.error(f"未知の配信ステータス: {status}")
             raise ValueError(f"未知の配信ステータス: {status}") from e
 
     @staticmethod
@@ -233,6 +238,7 @@ class Command(BaseCommand):
             str: 配信時間（例: "HH:MM:SS"）。
         """
         if end_time < start_time:
+            logging.error("終了時間は開始時間より後である必要があります。")
             raise ValueError("終了時間は開始時間より後である必要があります。")
 
         duration_seconds = end_time - start_time
@@ -269,6 +275,7 @@ class Command(BaseCommand):
                 "streamer_name": supplier["name"],
             }
         except KeyError as e:
+            logging.error(f"必須データが見つかりませんでした: {e.args[0]}", exc_info=True)
             raise ValueError(f"必須データが見つかりませんでした: {e.args[0]}") from e
 
         # 配信時間を算出して streaming_data に追加
@@ -354,4 +361,5 @@ class Command(BaseCommand):
             cls.save_or_update_streaming(streaming_data, streamer)
 
         except Exception as e:
+            logging.error(f"データベース保存エラー: {e}", exc_info=True)
             raise Exception(f"データベース保存エラー: {e}") from e
