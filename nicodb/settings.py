@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 import socket
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -155,6 +156,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ロギング設定
+
+TESTING = "pytest" in sys.modules
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -178,8 +182,8 @@ LOGGING = {
             "propagate": True,
         },
         "streamings": {  # `streamings` アプリ用のロガー
-            "handlers": ["file"],
-            "level": "DEBUG",
+            "handlers": ["file", "console"] if not TESTING else [],
+            "level": "DEBUG" if not TESTING else "CRITICAL",
             "propagate": False,
         },
     },
