@@ -49,6 +49,7 @@ jobs:
         run: |
           echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> $GITHUB_ENV
           echo "DEBUG=${{ secrets.DJANGO_DEBUG }}" >> $GITHUB_ENV
+          echo "TESTING=True" >> $GITHUB_ENV
 
       - name: 単体テストを実行
         run: pytest streamings/tests/unit --cov-fail-under=80
