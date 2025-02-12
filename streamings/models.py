@@ -1,5 +1,7 @@
 from django.db import models
 
+from streamings.constants import StreamingStatus
+
 
 class Streamer(models.Model):
     """配信者テーブル"""
@@ -37,7 +39,10 @@ class Streaming(models.Model):
     start_time = models.DateTimeField(verbose_name="配信開始時間")
     end_time = models.DateTimeField(verbose_name="配信終了時間")
     duration_time = models.DurationField(verbose_name="配信時間")
-    status = models.CharField(max_length=8, verbose_name="配信ステータス")
+    status = models.IntegerField(
+        choices=[(s.value, s.name) for s in StreamingStatus],
+        verbose_name="配信ステータス",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
     streamer = models.ForeignKey(Streamer, on_delete=models.CASCADE, verbose_name="配信者ID")

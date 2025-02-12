@@ -15,6 +15,7 @@ commands = [[ "ruff", "check", "." ]]
 description = "Run mypy: 型チェック"
 deps = [
     "django-axes",
+    "django-extensions",
     "django-stubs[compatible-mypy]",
     "mypy",
     "psycopg",

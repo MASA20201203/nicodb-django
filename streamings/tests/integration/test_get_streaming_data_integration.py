@@ -5,7 +5,11 @@ import pytest
 from django.core.management import call_command
 from django.utils import timezone
 
-from streamings.management.commands.get_streaming_data import Command, StreamingData
+from streamings.management.commands.get_streaming_data import (
+    Command,
+    StreamingData,
+    StreamingStatus,
+)
 from streamings.models import Streamer, Streaming
 
 
@@ -79,7 +83,7 @@ class TestSaveOrUpdateStreamingIntegration:
             start_time=datetime(2025, 2, 7, 14, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=1),
-            status="ENDED",
+            status=StreamingStatus.ENDED.value,
             streamer_id=streamer.streamer_id,
             streamer_name=streamer.name,
         )
@@ -110,7 +114,7 @@ class TestSaveOrUpdateStreamingIntegration:
             start_time=datetime(2025, 2, 7, 14, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=1),
-            status="ON_AIR",
+            status=StreamingStatus.ON_AIR.value,
             streamer=streamer,
         )
 
@@ -121,7 +125,7 @@ class TestSaveOrUpdateStreamingIntegration:
             start_time=datetime(2025, 2, 7, 14, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 7, 16, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=2),
-            status="ENDED",
+            status=StreamingStatus.ENDED.value,
             streamer_id=streamer.streamer_id,
             streamer_name=streamer.name,
         )
@@ -156,7 +160,7 @@ class TestSaveStreamingDataIntegration:
             start_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 7, 16, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=1),
-            status="ENDED",
+            status=StreamingStatus.ENDED.value,
             streamer_id="456",
             streamer_name="Test Streamer",
         )
@@ -190,7 +194,7 @@ class TestSaveStreamingDataIntegration:
             start_time=datetime(2025, 2, 10, 12, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 10, 13, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=1),
-            status="ON_AIR",
+            status=StreamingStatus.ON_AIR.value,
             streamer=streamer,
         )
 
@@ -201,7 +205,7 @@ class TestSaveStreamingDataIntegration:
             start_time=datetime(2025, 2, 10, 12, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 10, 14, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=2),
-            status="ENDED",
+            status=StreamingStatus.ENDED.value,
             streamer_id=12345,
             streamer_name="Test Streamer",
         )
@@ -234,7 +238,7 @@ def test_handle_integration():
     streaming = Streaming.objects.filter(streaming_id="346883570").first()
     assert streaming is not None  # 配信データが保存されているか？
     assert streaming.title == "ドライブ配信"  # タイトルが正しく保存されているか？
-    assert streaming.status == "ENDED"  # ステータスが正しく保存されているか？
+    assert streaming.status == StreamingStatus.ENDED.value  # ステータスが正しく保存されているか？
 
     # Then: StreamerデータがDBに保存されていることを確認
     streamer = Streamer.objects.filter(id=streaming.streamer.id).first()

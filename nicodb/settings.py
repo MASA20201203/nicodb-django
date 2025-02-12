@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # 3rd party apps
     "axes",  # 管理画面のログイン試行回数制限
+    "django_extensions",  # Django の管理コマンドを拡張
     # My apps
     "streamings",
 ]

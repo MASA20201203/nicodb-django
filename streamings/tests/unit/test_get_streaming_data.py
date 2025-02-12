@@ -8,7 +8,11 @@ import requests
 from bs4 import Tag
 from django.conf import settings
 
-from streamings.management.commands.get_streaming_data import Command, StreamingData
+from streamings.management.commands.get_streaming_data import (
+    Command,
+    StreamingData,
+    StreamingStatus,
+)
 
 
 def test_build_streaming_url(monkeypatch):
@@ -238,6 +242,41 @@ class TestConvertUnixToDatetime:
         assert result_dt == expected_datetime
 
 
+class TestConvertStreamingStatusToCode:
+    """
+    Command クラスの convert_streaming_status_to_code メソッドのテストクラス。
+    """
+
+    @pytest.mark.parametrize(
+        "status, expected",
+        [
+            ("RESERVED", StreamingStatus.RESERVED.value),
+            ("ON_AIR", StreamingStatus.ON_AIR.value),
+            ("ENDED", StreamingStatus.ENDED.value),
+        ],
+    )
+    def test_valid_status(self, status, expected):
+        """
+        正しい配信ステータスが適切なコードに変換されることを確認する。
+        """
+        # When: convert_status_to_code を実行
+        result = Command.convert_streaming_status_to_code(status)
+
+        # Then: 期待するステータスコードが返る
+        assert result == expected
+
+    def test_invalid_status(self):
+        """
+        未知の配信ステータスが渡された場合に ValueError が発生することを確認する。
+        """
+        # Given: 存在しないステータス
+        invalid_status = "UNKNOWN_STATUS"
+
+        # When & Then: ValueError が発生することを確認
+        with pytest.raises(ValueError, match=f"未知の配信ステータス: {invalid_status}"):
+            Command.convert_streaming_status_to_code(invalid_status)
+
+
 class TestCalculateDuration:
     """
     calculate_duration 関数のテストクラス。
@@ -354,7 +393,7 @@ class TestExtractStreamingData:
         assert result.start_time == expected_start_time  # 2025-01-27 00:00:00 UTC
         assert result.end_time == expected_end_time  # 2025-01-27 04:00:00 UTC
         assert result.duration_time == "04:00:00"
-        assert result.status == "ENDED"
+        assert result.status == StreamingStatus.ENDED.value
         assert result.streamer_id == "52053485"
         assert result.streamer_name == "3時サブ垢"
 
@@ -470,7 +509,7 @@ class TestHandleCommand:
             start_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
             end_time=datetime(2025, 2, 7, 17, 0, 0, tzinfo=dt_timezone.utc),
             duration_time=timedelta(hours=2),
-            status="ENDED",
+            status=StreamingStatus.ENDED.value,
             streamer_id="12345",
             streamer_name="Test Streamer",
         )

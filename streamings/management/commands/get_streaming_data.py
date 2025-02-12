@@ -32,6 +32,7 @@ from django.conf import settings
 from django.core.management import CommandParser
 from django.core.management.base import BaseCommand
 
+from streamings.constants import StreamingStatus
 from streamings.models import Streamer, Streaming
 
 
@@ -46,7 +47,7 @@ class StreamingData:
     start_time: datetime
     end_time: datetime
     duration_time: str
-    status: str
+    status: int
     streamer_id: str
     streamer_name: str
 
@@ -194,6 +195,25 @@ class Command(BaseCommand):
         # Unixタイムスタンプを UTC の datetime に変換して返す
         return datetime.fromtimestamp(unix_time, timezone.utc)
 
+    @classmethod
+    def convert_streaming_status_to_code(cls, status: str) -> int:
+        """
+        配信ステータスをコードに変換する。
+
+        Args:
+            status (str): 配信ステータス (例: "RESERVED", "ON_AIR", "ENDED")
+
+        Returns:
+            int: 変換後のステータスコード
+
+        Raises:
+            ValueError: 未知のステータスが渡された場合
+        """
+        try:
+            return StreamingStatus[status].value
+        except KeyError as e:
+            raise ValueError(f"未知の配信ステータス: {status}") from e
+
     @staticmethod
     def calculate_duration(start_time: int, end_time: int) -> str:
         """
@@ -238,7 +258,7 @@ class Command(BaseCommand):
                 "title": program["title"],
                 "start_time": cls.convert_unix_to_datetime(program["beginTime"]),
                 "end_time": cls.convert_unix_to_datetime(program["endTime"]),
-                "status": program["status"],
+                "status": cls.convert_streaming_status_to_code(program["status"]),
                 "streamer_id": supplier["programProviderId"],
                 "streamer_name": supplier["name"],
             }
