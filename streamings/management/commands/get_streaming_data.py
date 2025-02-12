@@ -22,6 +22,7 @@
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -34,6 +35,8 @@ from django.core.management.base import BaseCommand
 
 from streamings.constants import StreamingStatus
 from streamings.models import Streamer, Streaming
+
+logger = logging.getLogger("streamings")
 
 
 @dataclass
@@ -74,6 +77,7 @@ class Command(BaseCommand):
         """
         try:
             streaming_id = str(options["streaming_id"])
+            logger.info(f"配信データ取得を開始: 配信ID={streaming_id}")
             url = self.build_streaming_url(streaming_id)
             headers = self.get_default_headers()
             html_content = self.fetch_html(url, headers)
@@ -81,7 +85,9 @@ class Command(BaseCommand):
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
             self.save_streaming_data(extracted_streaming_data)
+            logger.info(f"配信データを正常に保存しました: 配信ID={streaming_id}")
         except Exception as e:
+            logger.error(f"予期せぬエラーが発生しました: {e}", exc_info=True)
             raise Exception(f"予期せぬエラー: {e}") from e
 
     @classmethod

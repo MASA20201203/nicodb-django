@@ -51,3 +51,6 @@ streamings/management/commands/*.html
 
 # 静的ファイル
 staticfiles/
+
+# ログファイル
+*.log
