@@ -1,5 +1,5 @@
 """
-配信データを取得・抽出し、DBに保存するスクリプト。
+配信データを取得・抽出し、DBに保存するコマンド。
 
 このスクリプトは以下の手順で処理を行います:
 1. 引数で指定された配信IDをもとにURLを生成。
@@ -77,7 +77,7 @@ class Command(BaseCommand):
         """
         try:
             streaming_id = str(options["streaming_id"])
-            logger.info(f"配信データ取得を開始: 配信ID={streaming_id}")
+            logger.info(f"START 配信データ取得を開始: 配信ID={streaming_id}")
             url = self.build_streaming_url(streaming_id)
             headers = self.get_default_headers()
             html_content = self.fetch_html(url, headers)
@@ -85,7 +85,7 @@ class Command(BaseCommand):
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
             self.save_streaming_data(extracted_streaming_data)
-            logger.info(f"配信データを正常に保存しました: 配信ID={streaming_id}")
+            logger.info(f"END   配信データを正常に保存しました: 配信ID={streaming_id}")
         except Exception as e:
             logger.error(f"予期せぬエラー: {e}", exc_info=True)
             raise Exception(f"予期せぬエラー: {e}") from e
