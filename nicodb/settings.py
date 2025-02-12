@@ -154,9 +154,13 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ロギング設定
-TESTING = os.getenv("TESTING", "False") == "True"
 
+# CI/CDのテスト環境でもロギングができるよう、ログファイル用ディレクトリを作成
+LOG_DIR = "logs"
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# ロギング設定
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -180,8 +184,8 @@ LOGGING = {
             "propagate": True,
         },
         "streamings": {  # `streamings` アプリ用のロガー
-            "handlers": ["file"] if not TESTING else [],
-            "level": "DEBUG" if not TESTING else "CRITICAL",
+            "handlers": ["file"],
+            "level": "DEBUG",
             "propagate": False,
         },
     },
