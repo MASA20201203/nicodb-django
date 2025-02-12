@@ -27,7 +27,7 @@ class Command(BaseCommand):
 
     help = "指定された配信ID（または範囲）で配信データを取得する"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser) -> None:
         """
         コマンドライン引数を定義する。
 
@@ -47,7 +47,7 @@ class Command(BaseCommand):
             help="取得する配信データの終了ID（省略可能）。省略した場合は start_id と同じ値になる。",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args, **options) -> None:
         """
         コマンドのメイン処理。
 
@@ -64,11 +64,12 @@ class Command(BaseCommand):
         """
         start_id, end_id = self.validate_ids(options["start_id"], options["end_id"])
 
-        self.log_start(start_id, end_id)
+        logger.info(f"START 配信データ範囲取得を開始: ID範囲={start_id}〜{end_id}")
         self.fetch_streaming_data_range(start_id, end_id)
-        self.log_end(start_id, end_id)
+        logger.info(f"END   配信データ範囲取得が完了しました: ID範囲={start_id}〜{end_id}")
 
-    def validate_ids(self, start_id: int, end_id: int | None) -> tuple[int, int]:
+    @classmethod
+    def validate_ids(cls, start_id: int, end_id: int | None) -> tuple[int, int]:
         """
         開始IDと終了IDのバリデーションを行う。
 
@@ -92,27 +93,8 @@ class Command(BaseCommand):
 
         return start_id, end_id
 
-    def log_start(self, start_id: int, end_id: int):
-        """
-        処理開始時にログを出力する。
-
-        Args:
-            start_id (int): 取得対象の開始配信ID。
-            end_id (int): 取得対象の終了配信ID。
-        """
-        logger.info(f"START 配信データ範囲取得を開始: ID範囲={start_id}〜{end_id}")
-
-    def log_end(self, start_id: int, end_id: int):
-        """
-        処理終了時にログを出力する。
-
-        Args:
-            start_id (int): 取得対象の開始配信ID。
-            end_id (int): 取得対象の終了配信ID。
-        """
-        logger.info(f"END   配信データ範囲取得が完了しました: ID範囲={start_id}〜{end_id}")
-
-    def fetch_streaming_data_range(self, start_id: int, end_id: int):
+    @classmethod
+    def fetch_streaming_data_range(cls, start_id: int, end_id: int) -> None:
         """
         指定された範囲の配信データを取得する。
 
@@ -123,9 +105,10 @@ class Command(BaseCommand):
             end_id (int): 取得対象の終了配信ID。
         """
         for streaming_id in range(start_id, end_id + 1):
-            self.fetch_and_save_streaming_data(streaming_id)
+            cls.fetch_and_save_streaming_data(streaming_id)
 
-    def fetch_and_save_streaming_data(self, streaming_id: int):
+    @classmethod
+    def fetch_and_save_streaming_data(cls, streaming_id: int) -> None:
         """
         配信データを取得し、保存する処理。
 
