@@ -178,7 +178,7 @@ LOGGING = {
             "propagate": True,
         },
         "streamings": {  # `streamings` アプリ用のロガー
-            "handlers": ["file", "console"],
+            "handlers": ["file"],
             "level": "DEBUG",
             "propagate": False,
         },
