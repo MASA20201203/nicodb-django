@@ -152,13 +152,13 @@ class Command(BaseCommand):
         """
         streaming_data = StreamingData(
             id=streaming_id,
-            title="存在しない配信ページ",
+            title="-- 存在しない配信 --",
             start_time=datetime(2007, 12, 25, tzinfo=timezone.utc),
             end_time=datetime(2007, 12, 25, tzinfo=timezone.utc),
             duration_time=timedelta(0),
             status=status_code,
             streamer_id=0,
-            streamer_name="存在しない配信者",
+            streamer_name="-- 存在しない配信者 --",
         )
         cls.save_streaming_data(streaming_data)
 
