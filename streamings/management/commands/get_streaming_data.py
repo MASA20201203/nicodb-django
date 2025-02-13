@@ -23,8 +23,9 @@
 
 import json
 import logging
+import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -45,13 +46,13 @@ class StreamingData:
     配信データを格納するデータクラス。
     """
 
-    id: str
+    id: int
     title: str
     start_time: datetime
     end_time: datetime
-    duration_time: str
+    duration_time: timedelta
     status: int
-    streamer_id: str
+    streamer_id: int
     streamer_name: str
 
 
@@ -81,6 +82,9 @@ class Command(BaseCommand):
             url = self.build_streaming_url(streaming_id)
             headers = self.get_default_headers()
             html_content = self.fetch_html(url, headers)
+            if not html_content:
+                logger.info(f"END   配信ページが見つかりませんでした: 配信ID={streaming_id}")
+                return
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
@@ -119,7 +123,47 @@ class Command(BaseCommand):
         }
 
     @staticmethod
-    def fetch_html(url: str, headers: dict) -> str:
+    def extract_streaming_id(url: str) -> int:
+        """
+        配信URLから配信IDを抽出する。
+
+        Args:
+            url (str): 配信ページのURL。
+
+        Returns:
+            int: 配信ID。
+
+        Raises:
+            ValueError: URL に配信IDが含まれていない場合。
+        """
+        match = re.search(r"lv(\d+)", url)  # "lv" の後に数字がある部分を抽出
+        if not match:
+            raise ValueError(f"URLから配信IDを取得できませんでした: {url}")
+        return int(match.group(1))  # 抽出した ID を整数に変換
+
+    @classmethod
+    def save_streaming_with_http_error(cls, status_code: int, streaming_id: int) -> None:
+        """
+        HTTPステータスコードが200以外の場合、配信IDとHTTPステータスコードを設定して、DBに保存する
+
+        Args:
+            status_code (int): HTTPステータスコード。
+            streaming_id (int): 取得できなかった配信ID。
+        """
+        streaming_data = StreamingData(
+            id=streaming_id,
+            title="存在しない配信ページ",
+            start_time=datetime(2007, 12, 25, tzinfo=timezone.utc),
+            end_time=datetime(2007, 12, 25, tzinfo=timezone.utc),
+            duration_time=timedelta(0),
+            status=status_code,
+            streamer_id=0,
+            streamer_name="存在しない配信者",
+        )
+        cls.save_streaming_data(streaming_data)
+
+    @classmethod
+    def fetch_html(cls, url: str, headers: dict) -> str | None:
         """
         指定されたURLからHTMLデータを取得する。
 
@@ -135,8 +179,12 @@ class Command(BaseCommand):
         """
         try:
             response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            return response.text
+            if response.status_code == 200:
+                return response.text
+            else:
+                streaming_id = cls.extract_streaming_id(url)
+                cls.save_streaming_with_http_error(response.status_code, streaming_id)
+                return None
         except requests.RequestException as e:
             logging.error(f"HTTPリクエストエラー: {e}", exc_info=True)
             raise Exception(f"HTTPリクエストエラー: {e}") from e
@@ -247,22 +295,22 @@ class Command(BaseCommand):
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
     @classmethod
-    def extract_streaming_data(cls, json_data: dict) -> StreamingData:
+    def extract_streaming_data(cls, data_props_dict: dict) -> StreamingData:
         """
-        JSONデータから配信情報を抽出する。
+        data_propsの辞書データから配信データを抽出する。
 
         Args:
             json_data (dict): 抽出対象のJSONデータ。
 
         Returns:
-            StreamingData: 配信情報（タイトル、配信者名、配信IDなど）。
+            StreamingData: 配信データ（タイトル、配信者名、配信IDなど）。
 
         Raises:
             Exception: 必須データが見つからなかった場合。
         """
 
         try:
-            program = json_data["program"]
+            program = data_props_dict["program"]
             supplier = program["supplier"]
 
             streaming_data = {

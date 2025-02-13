@@ -1,7 +1,8 @@
 import json
+import re
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -99,6 +100,34 @@ class TestHandleCommand:
         )
         mock_save_streaming_data.assert_called_once_with(mock_extract_streaming_data.return_value)
 
+    @patch.object(Command, "fetch_html", return_value=None)  # fetch_html をモックし、None を返す
+    @patch("streamings.management.commands.get_streaming_data.logger")
+    @patch.object(Command, "save_streaming_data")  # save_streaming_data をモック
+    def test_handle_missing_streaming_page(
+        self, mock_save_streaming_data, mock_logger, mock_fetch_html
+    ):
+        """
+        配信ページが見つからなかった場合 (`fetch_html` が None の場合)、
+        - 適切なログが出力されること
+        - `save_streaming_data` が呼ばれないこと
+        """
+        # Given: `handle` に渡す引数
+        options = {"streaming_id": "123456789"}
+
+        # When: `handle` を実行
+        command = Command()
+        command.handle(**options)
+
+        # Then: `fetch_html` が呼ばれていることを確認
+        mock_fetch_html.assert_called_once()
+
+        # 適切なログが出力されていることを確認
+        expected_log = "END   配信ページが見つかりませんでした: 配信ID=123456789"
+        mock_logger.info.assert_any_call(expected_log)
+
+        # `save_streaming_data` は **呼ばれない** ことを確認
+        mock_save_streaming_data.assert_not_called()
+
     @patch.object(Command, "fetch_html")
     def test_handle_exception(self, mock_fetch_html):
         """
@@ -147,57 +176,136 @@ def test_get_default_headers():
     assert result == expected_headers
 
 
+class TestExtractStreamingId:
+    """
+    extract_streaming_id メソッドのユニットテスト。
+    """
+
+    def test_extract_streaming_id_valid(self) -> None:
+        """
+        extract_streaming_id が正しく配信IDを取得できることを確認する。
+        """
+        # Given: URL と期待する配信ID
+        url = "https://live.nicovideo.jp/watch/lv123456789"
+
+        # When: extract_streaming_id を実行
+        result = Command.extract_streaming_id(url)
+
+        # Then: 期待する配信IDが取得できることを確認
+        expected = 123456789
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "invalid_url",
+        [
+            "https://live.nicovideo.jp/watch/",  # 配信IDなし
+            "https://live.nicovideo.jp/watch/abc123",  # ID部分が数字でない
+            "https://live.nicovideo.jp/",  # watch/lvなし
+            "https://live.nicovideo.jp/watch/lv/",  # IDなし
+            "https://live.nicovideo.jp/watch/123456789",  # 数字のみ
+        ],
+    )
+    def test_extract_streaming_id_invalid(self, invalid_url):
+        """
+        extract_streaming_id が無効なURLを受け取った場合、ValueError を発生させるかを確認する。
+        """
+        with pytest.raises(
+            ValueError, match=re.escape(f"URLから配信IDを取得できませんでした: {invalid_url}")
+        ):
+            Command.extract_streaming_id(invalid_url)
+
+
+@patch.object(Command, "save_streaming_data")  # `save_streaming_data` をモック化
+def test_save_streaming_with_http_error(mock_save_streaming_data):
+    """
+    save_streaming_with_http_error の動作テスト。
+
+    - `status_code` と `streaming_id` を適切に `StreamingData` に設定できるか
+    - `save_streaming_data` が正しく呼ばれているか
+    """
+    # Given: テストデータ
+    status_code = 404
+    streaming_id = 123456789
+
+    # When: save_streaming_with_http_error を実行
+    Command.save_streaming_with_http_error(status_code, streaming_id)
+
+    # Then: `save_streaming_data` が1回だけ呼ばれたことを確認
+    mock_save_streaming_data.assert_called_once()
+
+    # `save_streaming_data` の呼び出し時の引数（`StreamingData`）を取得
+    saved_data = mock_save_streaming_data.call_args[0][0]
+
+    # `StreamingData` の値が正しく設定されているか確認
+    assert isinstance(saved_data, StreamingData)
+    assert saved_data.id == streaming_id
+    assert saved_data.title == "存在しない配信ページ"
+    assert saved_data.start_time == datetime(2007, 12, 25, tzinfo=dt_timezone.utc)
+    assert saved_data.end_time == datetime(2007, 12, 25, tzinfo=dt_timezone.utc)
+    assert saved_data.duration_time == timedelta(0)
+    assert saved_data.status == status_code
+    assert saved_data.streamer_id == 0
+    assert saved_data.streamer_name == "存在しない配信者"
+
+
 class TestFetchHtml:
     """
     fetch_html 関数のテストクラス。
     """
 
-    @pytest.fixture(autouse=True)
-    def setup(self):
+    @pytest.mark.parametrize(
+        "status_code,expected_result",
+        [
+            (200, "<html>mock page</html>"),  # 正常レスポンス
+            (404, None),  # 404エラー時
+            (500, None),  # サーバーエラー時
+        ],
+    )
+    @patch.object(Command, "save_streaming_with_http_error")  # HTTPエラー時の保存メソッドをモック
+    @patch("requests.get")  # requests.get をモック
+    def test_fetch_html(
+        self, mock_requests_get, mock_save_streaming_with_http_error, status_code, expected_result
+    ):
         """
-        共通データのセットアップ。
+        fetch_html の動作テスト。
+        - ステータスコード 200: 正しく HTML を返すか
+        - ステータスコード 200 以外: `save_streaming_with_http_error` が呼ばれ、`None` を返すか
         """
-        self.url = "https://live.nicovideo.jp/watch/lv123456789"
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
-        }
+        # Given: requests.get のモックを作成
+        mock_response = MagicMock()
+        mock_response.status_code = status_code
+        mock_response.text = "<html>mock page</html>"
+        mock_requests_get.return_value = mock_response
 
-    def test_success(self, requests_mock):
-        """
-        fetch_html関数が正常にHTMLデータを取得する場合のテスト
-        """
-        # Given: 正常なレスポンスをモック
-        given_html = "<html><body><h1>Test Page</h1></body></html>"
-        requests_mock.get(self.url, [{"text": given_html, "status_code": 200}])
+        # When: fetch_html を実行
+        url = "https://live.nicovideo.jp/watch/lv346883570"
+        headers = {"User-Agent": "test-agent"}
+        result = Command.fetch_html(url, headers)
 
-        # When: fetch_html関数を呼び出す
-        result = Command.fetch_html(self.url, self.headers)
+        # Then: ステータスコード 200 の場合、HTML が返され、200以外の場合 None が返される
+        assert result == expected_result
 
-        # Then: 正しいHTMLデータが返される
-        expected_html = "<html><body><h1>Test Page</h1></body></html>"
-        assert result == expected_html
+        # ステータスコードが 200 以外の場合、save_streaming_with_http_error が呼ばれることを確認
+        if status_code != 200:
+            mock_save_streaming_with_http_error.assert_called_once_with(status_code, 346883570)
+        else:
+            mock_save_streaming_with_http_error.assert_not_called()
 
-    def test_http_error(self, requests_mock):
+    @patch("requests.get", side_effect=requests.RequestException("ネットワークエラー"))
+    @patch("logging.error")  # ロギングのモック
+    def test_fetch_html_request_exception(self, mock_logging_error, mock_requests_get):
         """
-        fetch_html関数がHTTPエラーを処理する場合のテスト
+        fetch_html でネットワークエラーが発生した場合、適切にログが出力され例外がスローされるか確認。
         """
-        # Given: HTTPエラーをモック
-        requests_mock.get(self.url, status_code=403)
+        url = "https://example.com/test"
+        headers = {"User-Agent": "test-agent"}
 
-        # When & Then: fetch_html関数が例外を投げることを確認
-        with pytest.raises(Exception, match="HTTPリクエストエラー: 403 Client Error"):
-            Command.fetch_html(self.url, self.headers)
+        # 例外の発生を確認
+        with pytest.raises(Exception, match="HTTPリクエストエラー: ネットワークエラー"):
+            Command.fetch_html(url, headers)
 
-    def test_request_exception(self, requests_mock):
-        """
-        fetch_html関数がリクエスト例外を処理する場合のテスト
-        """
-        # Given: リクエスト例外をモック
-        requests_mock.get(self.url, exc=requests.exceptions.ConnectionError("Connection refused"))
-
-        # When & Then: fetch_html関数が例外を投げることを確認
-        with pytest.raises(Exception, match="HTTPリクエストエラー: Connection refused"):
-            Command.fetch_html(self.url, self.headers)
+        # logging.error が呼ばれていることを確認
+        mock_logging_error.assert_called_once()
 
 
 class TestFindScriptTagWithDataProps:

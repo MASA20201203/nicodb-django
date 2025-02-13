@@ -6,7 +6,7 @@ from streamings.constants import StreamingStatus
 class Streamer(models.Model):
     """配信者テーブル"""
 
-    streamer_id = models.BigIntegerField(verbose_name="配信者ID")
+    streamer_id = models.BigIntegerField(default=0, verbose_name="配信者ID")
     name = models.CharField(max_length=16, verbose_name="配信者名")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
