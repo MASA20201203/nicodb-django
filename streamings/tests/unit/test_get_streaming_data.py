@@ -239,13 +239,13 @@ def test_save_streaming_with_http_error(mock_save_streaming_data):
     # `StreamingData` の値が正しく設定されているか確認
     assert isinstance(saved_data, StreamingData)
     assert saved_data.id == streaming_id
-    assert saved_data.title == "存在しない配信ページ"
+    assert saved_data.title == "-- 存在しない配信 --"
     assert saved_data.start_time == datetime(2007, 12, 25, tzinfo=dt_timezone.utc)
     assert saved_data.end_time == datetime(2007, 12, 25, tzinfo=dt_timezone.utc)
     assert saved_data.duration_time == timedelta(0)
     assert saved_data.status == status_code
     assert saved_data.streamer_id == 0
-    assert saved_data.streamer_name == "存在しない配信者"
+    assert saved_data.streamer_name == "-- 存在しない配信者 --"
 
 
 class TestFetchHtml:
