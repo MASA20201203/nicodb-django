@@ -6,6 +6,64 @@ from django.core.management import CommandError
 from streamings.management.commands.get_streaming_data_range import Command
 
 
+class TestHandleCommand:
+    """
+    `handle` メソッドのテストクラス。
+    """
+
+    @patch.object(Command, "fetch_streaming_data_range")
+    @patch("streamings.management.commands.get_streaming_data_range.logger")
+    def test_handle_success(self, mock_logger, mock_fetch_data_range):
+        """
+        `handle` が正常に動作し、適切なログと処理が実行されることを確認。
+        """
+        # Given: コマンド引数
+        options = {"start_id": 100, "end_id": 102}
+
+        # When: handle() を実行
+        command = Command()
+        command.handle(**options)
+
+        # Then: ログが正しく出力されているか
+        mock_logger.info.assert_any_call("START 配信データ範囲取得を開始: ID範囲=100〜102")
+        mock_fetch_data_range.assert_called_once_with(100, 102)
+        mock_logger.info.assert_any_call("END   配信データ範囲取得が完了しました: ID範囲=100〜102")
+
+    @patch.object(Command, "fetch_streaming_data_range")
+    @patch("streamings.management.commands.get_streaming_data_range.logger")
+    def test_handle_single_id(self, mock_logger, mock_fetch_data_range):
+        """
+        `end_id` を省略した場合でも `start_id` のみで処理されることを確認。
+        """
+        # Given: `end_id` を省略
+        options = {"start_id": 100, "end_id": None}
+
+        # When: handle() を実行
+        command = Command()
+        command.handle(**options)
+
+        # Then: `start_id` のみが範囲として扱われる
+        mock_logger.info.assert_any_call("START 配信データ範囲取得を開始: ID範囲=100〜100")
+        mock_fetch_data_range.assert_called_once_with(100, 100)
+        mock_logger.info.assert_any_call("END   配信データ範囲取得が完了しました: ID範囲=100〜100")
+
+    @patch("streamings.management.commands.get_streaming_data_range.logger")
+    def test_handle_invalid_id_range(self, mock_logger):
+        """
+        `start_id > end_id` の場合、`CommandError` が発生することを確認。
+        """
+        # Given: `start_id > end_id`
+        options = {"start_id": 105, "end_id": 100}
+
+        # When & Then: `CommandError` が発生
+        command = Command()
+        with pytest.raises(CommandError, match="開始IDは終了IDより小さい値にしてください。"):
+            command.handle(**options)
+
+        # エラーログが出力されていないことを確認
+        mock_logger.info.assert_not_called()
+
+
 class TestValidateIds:
     """
     validate_ids のユニットテスト。

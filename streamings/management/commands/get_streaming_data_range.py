@@ -27,7 +27,7 @@ class Command(BaseCommand):
 
     help = "指定された配信ID（または範囲）で配信データを取得する"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser) -> None:  # pragma: no cover
         """
         コマンドライン引数を定義する。
 

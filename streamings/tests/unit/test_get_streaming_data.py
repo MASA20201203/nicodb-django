@@ -15,6 +15,105 @@ from streamings.management.commands.get_streaming_data import (
 )
 
 
+class TestHandleCommand:
+    """
+    Command クラスの handle メソッドのテストクラス。
+    """
+
+    @patch.object(Command, "build_streaming_url")
+    @patch.object(Command, "get_default_headers")
+    @patch.object(Command, "fetch_html")
+    @patch.object(Command, "find_script_tag_with_data_props")
+    @patch.object(Command, "parse_data_props_to_dict")
+    @patch.object(Command, "extract_streaming_data")
+    @patch.object(Command, "save_streaming_data")
+    def test_handle_success(
+        self,
+        mock_save_streaming_data,
+        mock_extract_streaming_data,
+        mock_parse_data_props_to_dict,
+        mock_find_script_tag_with_data_props,
+        mock_fetch_html,
+        mock_get_default_headers,
+        mock_build_streaming_url,
+    ):
+        """
+        handle メソッドが正常に動作する場合のテスト。
+        """
+        # Given: モックの設定
+        options = {"streaming_id": "123456789"}
+        mock_build_streaming_url.return_value = "https://live.nicovideo.jp/watch/lv123456789"
+        mock_get_default_headers.return_value = {"User-Agent": "test-agent"}
+        mock_fetch_html.return_value = "<html><body><script id='embedded-data' data-props='{\"key\": \"value\"}'></script></body></html>"
+        mock_find_script_tag_with_data_props.return_value = (
+            "<script id='embedded-data' data-props='{\"key\": \"value\"}'></script>"
+        )
+        mock_parse_data_props_to_dict.return_value = {
+            "program": {
+                "nicoliveProgramId": "lv123456789",
+                "title": "Test Streaming",
+                "supplier": {"name": "Test Streamer", "programProviderId": "12345"},
+                "beginTime": 1738926000,
+                "endTime": 1738933200,
+                "status": "ENDED",
+            }
+        }
+        mock_extract_streaming_data.return_value = StreamingData(
+            id="123456789",
+            title="Test Streaming",
+            start_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
+            end_time=datetime(2025, 2, 7, 17, 0, 0, tzinfo=dt_timezone.utc),
+            duration_time=timedelta(hours=2),
+            status=StreamingStatus.ENDED.value,
+            streamer_id="12345",
+            streamer_name="Test Streamer",
+        )
+
+        # When: handle メソッドを呼び出す
+        command = Command()
+        command.handle(**options)
+
+        # Then: 各メソッドが正しく呼び出されることを確認
+        mock_build_streaming_url.assert_called_once_with("123456789")
+        mock_get_default_headers.assert_called_once()
+        mock_fetch_html.assert_called_once_with(
+            "https://live.nicovideo.jp/watch/lv123456789", {"User-Agent": "test-agent"}
+        )
+        mock_find_script_tag_with_data_props.assert_called_once_with(
+            "<html><body><script id='embedded-data' data-props='{\"key\": \"value\"}'></script></body></html>"
+        )
+        mock_parse_data_props_to_dict.assert_called_once_with(
+            "<script id='embedded-data' data-props='{\"key\": \"value\"}'></script>"
+        )
+        mock_extract_streaming_data.assert_called_once_with(
+            {
+                "program": {
+                    "nicoliveProgramId": "lv123456789",
+                    "title": "Test Streaming",
+                    "supplier": {"name": "Test Streamer", "programProviderId": "12345"},
+                    "beginTime": 1738926000,
+                    "endTime": 1738933200,
+                    "status": "ENDED",
+                }
+            }
+        )
+        mock_save_streaming_data.assert_called_once_with(mock_extract_streaming_data.return_value)
+
+    @patch.object(Command, "fetch_html")
+    def test_handle_exception(self, mock_fetch_html):
+        """
+        handle メソッドが例外を正しく処理する場合のテスト。
+        """
+        # Given: モックの設定
+        options = {"streaming_id": "123456789"}
+        mock_fetch_html.side_effect = Exception("ネットワークエラー")
+
+        # When & Then: handle メソッドが例外を発生させることを確認
+        with pytest.raises(Exception, match="予期せぬエラー: ネットワークエラー"):
+            command = Command()
+            command.handle(**options)
+
+
 def test_build_streaming_url(monkeypatch):
     """
     build_streaming_url関数が配信IDから正しいURLを生成するかをテスト
@@ -458,102 +557,3 @@ class TestSaveStreamingData:
         # When & Then: `print` の出力をキャプチャしてエラーメッセージを確認
         with pytest.raises(Exception, match="DB error"):
             Command.save_streaming_data(streaming_data)
-
-
-class TestHandleCommand:
-    """
-    Command クラスの handle メソッドのテストクラス。
-    """
-
-    @patch.object(Command, "build_streaming_url")
-    @patch.object(Command, "get_default_headers")
-    @patch.object(Command, "fetch_html")
-    @patch.object(Command, "find_script_tag_with_data_props")
-    @patch.object(Command, "parse_data_props_to_dict")
-    @patch.object(Command, "extract_streaming_data")
-    @patch.object(Command, "save_streaming_data")
-    def test_handle_success(
-        self,
-        mock_save_streaming_data,
-        mock_extract_streaming_data,
-        mock_parse_data_props_to_dict,
-        mock_find_script_tag_with_data_props,
-        mock_fetch_html,
-        mock_get_default_headers,
-        mock_build_streaming_url,
-    ):
-        """
-        handle メソッドが正常に動作する場合のテスト。
-        """
-        # Given: モックの設定
-        options = {"streaming_id": "123456789"}
-        mock_build_streaming_url.return_value = "https://live.nicovideo.jp/watch/lv123456789"
-        mock_get_default_headers.return_value = {"User-Agent": "test-agent"}
-        mock_fetch_html.return_value = "<html><body><script id='embedded-data' data-props='{\"key\": \"value\"}'></script></body></html>"
-        mock_find_script_tag_with_data_props.return_value = (
-            "<script id='embedded-data' data-props='{\"key\": \"value\"}'></script>"
-        )
-        mock_parse_data_props_to_dict.return_value = {
-            "program": {
-                "nicoliveProgramId": "lv123456789",
-                "title": "Test Streaming",
-                "supplier": {"name": "Test Streamer", "programProviderId": "12345"},
-                "beginTime": 1738926000,
-                "endTime": 1738933200,
-                "status": "ENDED",
-            }
-        }
-        mock_extract_streaming_data.return_value = StreamingData(
-            id="123456789",
-            title="Test Streaming",
-            start_time=datetime(2025, 2, 7, 15, 0, 0, tzinfo=dt_timezone.utc),
-            end_time=datetime(2025, 2, 7, 17, 0, 0, tzinfo=dt_timezone.utc),
-            duration_time=timedelta(hours=2),
-            status=StreamingStatus.ENDED.value,
-            streamer_id="12345",
-            streamer_name="Test Streamer",
-        )
-
-        # When: handle メソッドを呼び出す
-        command = Command()
-        command.handle(**options)
-
-        # Then: 各メソッドが正しく呼び出されることを確認
-        mock_build_streaming_url.assert_called_once_with("123456789")
-        mock_get_default_headers.assert_called_once()
-        mock_fetch_html.assert_called_once_with(
-            "https://live.nicovideo.jp/watch/lv123456789", {"User-Agent": "test-agent"}
-        )
-        mock_find_script_tag_with_data_props.assert_called_once_with(
-            "<html><body><script id='embedded-data' data-props='{\"key\": \"value\"}'></script></body></html>"
-        )
-        mock_parse_data_props_to_dict.assert_called_once_with(
-            "<script id='embedded-data' data-props='{\"key\": \"value\"}'></script>"
-        )
-        mock_extract_streaming_data.assert_called_once_with(
-            {
-                "program": {
-                    "nicoliveProgramId": "lv123456789",
-                    "title": "Test Streaming",
-                    "supplier": {"name": "Test Streamer", "programProviderId": "12345"},
-                    "beginTime": 1738926000,
-                    "endTime": 1738933200,
-                    "status": "ENDED",
-                }
-            }
-        )
-        mock_save_streaming_data.assert_called_once_with(mock_extract_streaming_data.return_value)
-
-    @patch.object(Command, "fetch_html")
-    def test_handle_exception(self, mock_fetch_html):
-        """
-        handle メソッドが例外を正しく処理する場合のテスト。
-        """
-        # Given: モックの設定
-        options = {"streaming_id": "123456789"}
-        mock_fetch_html.side_effect = Exception("ネットワークエラー")
-
-        # When & Then: handle メソッドが例外を発生させることを確認
-        with pytest.raises(Exception, match="予期せぬエラー: ネットワークエラー"):
-            command = Command()
-            command.handle(**options)
