@@ -86,11 +86,6 @@ class Command(BaseCommand):
                 logger.info(f"END   配信ページが見つかりませんでした: 配信ID={streaming_id}")
                 return
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
-
-            # DEBUG
-            print(str(script_tag_with_data_props["data-props"]))
-            return
-
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
             self.save_streaming_data(extracted_streaming_data)
