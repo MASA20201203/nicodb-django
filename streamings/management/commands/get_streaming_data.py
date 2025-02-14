@@ -86,6 +86,11 @@ class Command(BaseCommand):
                 logger.info(f"END   配信ページが見つかりませんでした: 配信ID={streaming_id}")
                 return
             script_tag_with_data_props = self.find_script_tag_with_data_props(html_content)
+
+            # DEBUG
+            print(str(script_tag_with_data_props["data-props"]))
+            return
+
             data_props_dict = self.parse_data_props_to_dict(script_tag_with_data_props)
             extracted_streaming_data = self.extract_streaming_data(data_props_dict)
             self.save_streaming_data(extracted_streaming_data)
@@ -211,12 +216,12 @@ class Command(BaseCommand):
         return script_tag_with_data_props
 
     @classmethod
-    def parse_data_props_to_dict(cls, script_tag_with_embedded_data: Tag) -> dict:
+    def parse_data_props_to_dict(cls, script_tag_with_data_props: Tag) -> dict:
         """
         スクリプトタグのdata-props属性の値をパース（json -> dict に変換）して、Pythonで扱えるようにする。
 
         Args:
-            script_tag_with_embedded_data (Tag): data-props属性を含むスクリプトタグ。
+            script_tag_with_data_props (Tag): data-props属性を含むスクリプトタグ。
 
         Returns:
             dict: 辞書型にパースされたJSONデータ。
@@ -224,7 +229,7 @@ class Command(BaseCommand):
         Raises:
             Exception: data-props属性の値が空の場合。
         """
-        data_props = str(script_tag_with_embedded_data["data-props"])
+        data_props = str(script_tag_with_data_props["data-props"])
         if data_props.strip() == "":
             logging.error("data-props属性の値が空です。")
             raise ValueError("data-props属性の値が空です。")
@@ -297,7 +302,7 @@ class Command(BaseCommand):
     @classmethod
     def extract_streaming_data(cls, data_props_dict: dict) -> StreamingData:
         """
-        data_propsの辞書データから配信データを抽出する。
+        data_props から配信データを抽出する。
 
         Args:
             json_data (dict): 抽出対象のJSONデータ。

@@ -181,9 +181,9 @@ todo.md
 memo.md
 retrospective.md
 
-# 一時ファイル
-streamings/management/commands/*.json
-streamings/management/commands/*.html
+# データ分析ファイル
+streamings/management/commands/data/*.json
+streamings/management/commands/data/*.html
 
 # 静的ファイル
 staticfiles/
