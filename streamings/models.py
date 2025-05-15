@@ -1,12 +1,12 @@
 from django.db import models
 
-from streamings.constants import StreamingStatus
+from streamings.constants import StreamingStatus, StreamingType
 
 
 class Streamer(models.Model):
     """配信者テーブル"""
 
-    streamer_id = models.BigIntegerField(default=0, verbose_name="配信者ID")
+    streamer_id = models.BigIntegerField(verbose_name="配信者ID")
     name = models.CharField(max_length=16, verbose_name="配信者名")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
@@ -31,10 +31,27 @@ class Streamer(models.Model):
         return latest_streamer.name if latest_streamer else "存在しない配信者です。"
 
 
+class Channel(models.Model):
+    """チャンネルテーブル"""
+
+    channel_id = models.BigIntegerField(unique=True, verbose_name="チャンネルID")
+    name = models.CharField(max_length=100, verbose_name="チャンネル名")
+    company_name = models.CharField(max_length=100, verbose_name="企業名")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
+
+    def __str__(self):
+        return self.name
+
+
 class Streaming(models.Model):
     """配信テーブル"""
 
     streaming_id = models.BigIntegerField(verbose_name="配信ID")
+    type = models.IntegerField(
+        choices=[(t.value, t.name) for t in StreamingType],
+        verbose_name="配信タイプ",
+    )
     title = models.CharField(max_length=100, verbose_name="配信タイトル")
     start_time = models.DateTimeField(verbose_name="配信開始時間")
     end_time = models.DateTimeField(verbose_name="配信終了時間")
@@ -46,6 +63,7 @@ class Streaming(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
     streamer = models.ForeignKey(Streamer, on_delete=models.CASCADE, verbose_name="配信者ID")
+    channel = models.ForeignKey(Channel, on_delete=models.CASCADE, verbose_name="チャンネルID")
 
     def __str__(self):
         return self.title

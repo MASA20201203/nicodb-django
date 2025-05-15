@@ -34,8 +34,8 @@ from django.conf import settings
 from django.core.management import CommandParser
 from django.core.management.base import BaseCommand
 
-from streamings.constants import StreamingStatus
-from streamings.models import Streamer, Streaming
+from streamings.constants import StreamingStatus, StreamingType
+from streamings.models import Channel, Streamer, Streaming
 
 logger = logging.getLogger("streamings")
 
@@ -47,6 +47,7 @@ class StreamingData:
     """
 
     id: int
+    type: int
     title: str
     start_time: datetime
     end_time: datetime
@@ -54,6 +55,9 @@ class StreamingData:
     status: int
     streamer_id: int
     streamer_name: str
+    channel_id: int
+    channel_name: str
+    company_name: str
 
 
 class Command(BaseCommand):
@@ -152,13 +156,17 @@ class Command(BaseCommand):
         """
         streaming_data = StreamingData(
             id=streaming_id,
-            title="-- 存在しない配信 --",
+            type=StreamingType.UNKNOWN.value,
+            title=settings.UNKNOWN_STREAMING_TITLE,
             start_time=datetime(2007, 12, 25, tzinfo=timezone.utc),
             end_time=datetime(2007, 12, 25, tzinfo=timezone.utc),
             duration_time=timedelta(0),
             status=status_code,
-            streamer_id=0,
-            streamer_name="-- 存在しない配信者 --",
+            streamer_id=settings.UNKNOWN_STREAMER_ID,
+            streamer_name=settings.UNKNOWN_STREAMER_NAME,
+            channel_id=settings.UNKNOWN_CHANNEL_ID,
+            channel_name=settings.UNKNOWN_CHANNEL_NAME,
+            company_name=settings.UNKNOWN_COMPANY_NAME,
         )
         cls.save_streaming_data(streaming_data)
 
@@ -311,22 +319,61 @@ class Command(BaseCommand):
 
         try:
             program = data_props_dict["program"]
-            supplier = program["supplier"]
+            supplier = program.get("supplier", {})
+            provider_type = program["providerType"]
 
-            streaming_data = {
+            # 共通項目のセット
+            common_data = {
                 "id": program["nicoliveProgramId"].removeprefix("lv"),
                 "title": program["title"],
                 "start_time": cls.convert_unix_to_datetime(program["beginTime"]),
                 "end_time": cls.convert_unix_to_datetime(program["endTime"]),
                 "status": cls.convert_streaming_status_to_code(program["status"]),
-                "streamer_id": supplier["programProviderId"],
-                "streamer_name": supplier["name"],
             }
+
+            # `providerType` に基づく設定
+            if provider_type == "community":
+                provider_data = {
+                    "type": StreamingType.USER.value,
+                    "streamer_id": supplier.get("programProviderId", settings.UNKNOWN_STREAMER_ID),
+                    "streamer_name": supplier.get("name", settings.UNKNOWN_STREAMER_NAME),
+                    "channel_id": settings.UNKNOWN_CHANNEL_ID,
+                    "channel_name": settings.UNKNOWN_CHANNEL_NAME,
+                    "company_name": settings.UNKNOWN_COMPANY_NAME,
+                }
+            elif provider_type == "channel":
+                provider_data = {
+                    "type": StreamingType.CHANNEL.value,
+                    "streamer_id": settings.UNKNOWN_STREAMER_ID,
+                    "streamer_name": settings.UNKNOWN_STREAMER_NAME,
+                    "channel_id": data_props_dict["socialGroup"]["id"].removeprefix("ch"),
+                    "channel_name": data_props_dict["socialGroup"]["name"],
+                    "company_name": data_props_dict["socialGroup"]["companyName"],
+                }
+            elif provider_type == "official":
+                provider_data = {
+                    "type": StreamingType.COMPANY.value,
+                    "streamer_id": settings.UNKNOWN_STREAMER_ID,
+                    "streamer_name": settings.UNKNOWN_STREAMER_NAME,
+                    "channel_id": data_props_dict["socialGroup"]["id"].removeprefix("ch"),
+                    "channel_name": data_props_dict["socialGroup"]["name"],
+                    "company_name": data_props_dict["socialGroup"]["companyName"],
+                }
+            else:
+                logging.error(
+                    f"未知の配信タイプです: 配信ID={common_data['id']}, タイプ={provider_type}"
+                )
+                raise ValueError(
+                    f"未知の配信タイプです: 配信ID={common_data['id']}, タイプ={provider_type}"
+                )
+            # `common_data` に `provider_mapping` をマージ
+            streaming_data = {**common_data, **provider_data}
+
         except KeyError as e:
             logging.error(f"必須データが見つかりませんでした: {e.args[0]}", exc_info=True)
             raise ValueError(f"必須データが見つかりませんでした: {e.args[0]}") from e
 
-        # 配信時間を算出して streaming_data に追加
+        # 配信時間を算出
         streaming_data["duration_time"] = cls.calculate_duration(
             program["beginTime"], program["endTime"]
         )
@@ -364,7 +411,9 @@ class Command(BaseCommand):
         return streamer
 
     @classmethod
-    def save_or_update_streaming(cls, streaming_data: StreamingData, streamer: Streamer) -> None:
+    def save_or_update_streaming(
+        cls, streaming_data: StreamingData, streamer: Streamer, channel: Channel
+    ) -> None:
         """
         配信データを保存または更新する。
 
@@ -378,12 +427,14 @@ class Command(BaseCommand):
         streaming, created = Streaming.objects.update_or_create(
             streaming_id=streaming_data.id,
             defaults={
+                "type": streaming_data.type,
                 "title": streaming_data.title,
                 "start_time": streaming_data.start_time,
                 "end_time": streaming_data.end_time,
                 "duration_time": streaming_data.duration_time,
                 "status": streaming_data.status,
                 "streamer": streamer,  # Streamer のインスタンスを紐付け
+                "channel": channel,
             },
         )
 
@@ -405,9 +456,39 @@ class Command(BaseCommand):
                 streamer_name=streaming_data.streamer_name,
             )
 
+            # チャンネル情報の保存・更新
+            channel = cls.create_or_update_channel(
+                channel_id=int(streaming_data.channel_id),
+                channel_name=streaming_data.channel_name,
+                company_name=streaming_data.company_name,
+            )
+
             # 配信データの保存・更新
-            cls.save_or_update_streaming(streaming_data, streamer)
+            cls.save_or_update_streaming(streaming_data, streamer, channel)
 
         except Exception as e:
             logging.error(f"データベース保存エラー: {e}", exc_info=True)
             raise Exception(f"データベース保存エラー: {e}") from e
+
+    @classmethod
+    def create_or_update_channel(
+        cls, channel_id: int, channel_name: str, company_name: str
+    ) -> Channel:
+        """
+        チャンネル情報を保存または取得する。
+
+        - `channel_id` が既に存在する場合、チャンネル名と企業名を更新。
+        - `channel_id` が存在しない場合、新規レコードを作成。
+
+        Args:
+            channel_id (int): チャンネルID
+            channel_name (str): チャンネル名
+            company_name (str): 企業名
+
+        Returns:
+            Channel: 保存または更新されたチャンネルインスタンス
+        """
+        channel, created = Channel.objects.update_or_create(
+            channel_id=channel_id, defaults={"name": channel_name, "company_name": company_name}
+        )
+        return channel

@@ -13,6 +13,7 @@ from streamings.management.commands.get_streaming_data import (
     Command,
     StreamingData,
     StreamingStatus,
+    StreamingType,
 )
 
 
@@ -68,6 +69,10 @@ class TestHandleCommand:
             status=StreamingStatus.ENDED.value,
             streamer_id="12345",
             streamer_name="Test Streamer",
+            channel_id=settings.UNKNOWN_CHANNEL_ID,
+            channel_name=settings.UNKNOWN_CHANNEL_NAME,
+            company_name=settings.UNKNOWN_COMPANY_NAME,
+            type=StreamingType.USER.value,
         )
 
         # When: handle メソッドを呼び出す
@@ -578,6 +583,7 @@ class TestExtractStreamingData:
                 "beginTime": 1737936000,  # 2025-01-27 00:00:00 UTC
                 "endTime": 1737950400,  # 2025-01-27 04:00:00 UTC
                 "status": "ENDED",
+                "providerType": "community",
             }
         }
 
@@ -600,9 +606,13 @@ class TestExtractStreamingData:
         assert result.start_time == expected_start_time  # 2025-01-27 00:00:00 UTC
         assert result.end_time == expected_end_time  # 2025-01-27 04:00:00 UTC
         assert result.duration_time == "04:00:00"
-        assert result.status == StreamingStatus.ENDED.value
+        assert result.status == 30
         assert result.streamer_id == "52053485"
         assert result.streamer_name == "3時サブ垢"
+        assert result.type == StreamingType.USER.value
+        assert result.channel_id == 0
+        assert result.channel_name == "-- 存在しないチャンネル --"
+        assert result.company_name == "-- 存在しない企業 --"
 
     @pytest.mark.parametrize(
         "missing_field",
@@ -612,8 +622,7 @@ class TestExtractStreamingData:
             ("beginTime", "必須データが見つかりませんでした: beginTime"),
             ("endTime", "必須データが見つかりませんでした: endTime"),
             ("status", "必須データが見つかりませんでした: status"),
-            ("programProviderId", "必須データが見つかりませんでした: programProviderId"),
-            ("name", "必須データが見つかりませんでした: name"),
+            ("providerType", "必須データが見つかりませんでした: providerType"),
         ],
     )
     def test_missing_required_fields(self, valid_dict_data, missing_field):
@@ -622,14 +631,10 @@ class TestExtractStreamingData:
         """
         # Given: 必須フィールドを削除
         field_name, expected_message = missing_field
-        program_or_supplier = valid_dict_data["program"]
-
-        # supplier の場合
-        if field_name in ["programProviderId", "name"]:
-            program_or_supplier = program_or_supplier["supplier"]
+        program = valid_dict_data["program"]
 
         # フィールドを削除
-        del program_or_supplier[field_name]
+        del program[field_name]
 
         # When & Then: 例外が発生することを確認
         with pytest.raises(ValueError, match=expected_message):
@@ -660,6 +665,10 @@ class TestSaveStreamingData:
             status="ENDED",
             streamer_id=12345,
             streamer_name="Test Streamer",
+            type="community",
+            channel_id=0,
+            channel_name="-- 存在しないチャンネル --",
+            company_name="-- 存在しない企業 --",
         )
 
         # When & Then: `print` の出力をキャプチャしてエラーメッセージを確認
