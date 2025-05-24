@@ -50,9 +50,6 @@ jobs:
           echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> $GITHUB_ENV
           echo "DEBUG=${{ secrets.DJANGO_DEBUG }}" >> $GITHUB_ENV
           echo "TESTING=True" >> $GITHUB_ENV
-          echo "UNKNOWN_STREAMING_TITLE=${{ secrets.UNKNOWN_STREAMING_TITLE }}" >> $GITHUB_ENV
-          echo "UNKNOWN_STREAMER_ID=${{ secrets.UNKNOWN_STREAMER_ID }}" >> $GITHUB_ENV
-          echo "UNKNOWN_STREAMER_NAME=${{ secrets.UNKNOWN_STREAMER_NAME }}" >> $GITHUB_ENV
           echo "UNKNOWN_CHANNEL_ID=${{ secrets.UNKNOWN_CHANNEL_ID }}" >> $GITHUB_ENV
           echo "UNKNOWN_CHANNEL_NAME=${{ secrets.UNKNOWN_CHANNEL_NAME }}" >> $GITHUB_ENV
           echo "UNKNOWN_COMPANY_NAME=${{ secrets.UNKNOWN_COMPANY_NAME }}" >> $GITHUB_ENV
@@ -103,6 +100,10 @@ jobs:
           echo "POSTGRES_PASSWORD=test_password" >> $GITHUB_ENV
           echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
           echo "POSTGRES_PORT=5432" >> $GITHUB_ENV
+          echo "UNKNOWN_CHANNEL_ID=${{ secrets.UNKNOWN_CHANNEL_ID }}" >> $GITHUB_ENV
+          echo "UNKNOWN_CHANNEL_NAME=${{ secrets.UNKNOWN_CHANNEL_NAME }}" >> $GITHUB_ENV
+          echo "UNKNOWN_COMPANY_NAME=${{ secrets.UNKNOWN_COMPANY_NAME }}" >> $GITHUB_ENV
+
 
       - name: PostgreSQL の起動を待つ
         run: |
