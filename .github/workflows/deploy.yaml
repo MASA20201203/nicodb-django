@@ -146,7 +146,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/nicodb-django:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/nicodb-django:latest
+            ${{ secrets.DOCKER_USERNAME }}/nicodb-django:${{ github.sha }}
 
       - name: サーバーにデプロイ
         uses: appleboy/ssh-action@v1.2.0
@@ -157,6 +159,7 @@ jobs:
           script: |
             docker pull ${{ secrets.DOCKER_USERNAME }}/nicodb-django:latest
             docker compose -f ${{ secrets.DOCKER_COMPOSE_FILE }} down
+            docker image prune -af
             docker compose -f ${{ secrets.DOCKER_COMPOSE_FILE }} up -d
 
   notify:
